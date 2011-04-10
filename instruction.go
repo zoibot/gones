@@ -401,8 +401,8 @@ func (i *Instruction) String() string {
     return i.op.op.String()
 }
 
-func (m *Machine) next_instruction() Instruction {
-    opcode := m.nextByte()
+func (c *CPU) next_instruction() Instruction {
+    opcode := c.nextByte()
     extra_cycles := 0
     op := Opcodes[opcode]
     args := [2]byte{0, 0}
@@ -412,87 +412,88 @@ func (m *Machine) next_instruction() Instruction {
     var i_addr word = 0
     switch op.addr_mode {
     case IMM:
-        operand = m.nextByte()
+        operand = c.nextByte()
         args[0] = operand
         arglen = 1
     case ZP:
-        addr = word(m.nextByte())
-        operand = m.getMem(addr)
+        addr = word(c.nextByte())
+        operand = c.m.getMem(addr)
         args[0] = byte(addr)
         arglen = 1
     case ZP_ST:
-        addr = word(m.nextByte())
+        addr = word(c.nextByte())
         args[0] = byte(addr)
         arglen = 1
     case ABS:
-        addr, args[0], args[1] = m.nextWordArgs()
-        operand = m.getMem(addr)
+        addr, args[0], args[1] = c.nextWordArgs()
+        operand = c.m.getMem(addr)
         arglen = 2
     case ABS_ST:
-        addr, args[0], args[1] = m.nextWordArgs()
+        addr, args[0], args[1] = c.nextWordArgs()
         arglen = 2
     case ABSI:
-        i_addr, args[0], args[1] = m.nextWordArgs()
-        addr = wordFromBytes((m.getMem(i_addr)),
-            m.getMem(i_addr+1&0xff+i_addr&0xff00))
+        i_addr, args[0], args[1] = c.nextWordArgs()
+        addr = wordFromBytes((c.m.getMem(i_addr)),
+            c.m.getMem(i_addr+1&0xff+i_addr&0xff00))
         arglen = 2
     case ABSY:
-        i_addr, args[0], args[1] = m.nextWordArgs()
-        addr = i_addr + word(m.y)&0xffff
+        i_addr, args[0], args[1] = c.nextWordArgs()
+        addr = i_addr + word(c.y)&0xffff
         if !op.store {
-            operand = m.getMem(addr)
+            operand = c.m.getMem(addr)
         }
         if i_addr&0xff00 != addr&0xff00 {
             extra_cycles += op.extra_page_cross
         }
         arglen = 2
     case ABSX:
-        i_addr, args[0], args[1] = m.nextWordArgs()
-        addr = i_addr + word(m.x)&0xffff
+        i_addr, args[0], args[1] = c.nextWordArgs()
+        addr = i_addr + word(c.x)&0xffff
         if !op.store {
-            operand = m.getMem(addr)
+            operand = c.m.getMem(addr)
         }
         if i_addr&0xff00 != addr&0xff00 {
             extra_cycles += op.extra_page_cross
         }
         arglen = 2
     case REL:
-        off := m.nextByte()
-        addr = off + m.pc
-        args[0] = off
+        off := int8(c.nextByte())
+        addr = word(off) + c.pc
+        args[0] = byte(off)
         arglen = 1
     case IXID:
-        args[0] = m.nextByte()
-        i_addr = (args[0] + m.x) & 0xff
-        addr = wordFromBytes(m.getMem(i_addr), m.getMem((i_addr+1)&0xff))
+        args[0] = c.nextByte()
+        i_addr = word((args[0] + c.x) & 0xff)
+        addr = wordFromBytes(c.m.getMem(i_addr), c.m.getMem((i_addr+1)&0xff))
         if !op.store {
-            operand = m.getMem(addr)
+            operand = c.m.getMem(addr)
         }
         arglen = 1
     case IDIX:
-        args[0] = m.nextByte()
-        addr = wordFromBytes(m.getMem(args[0]), m.getMem(args[0]+1&0xff))
-        addr += m.y
+        args[0] = c.nextByte()
+        addr = wordFromBytes(c.m.getMem(word(args[0])),
+                    c.m.getMem(word(args[0]+1&0xff)))
+        addr += word(c.y)
         addr &= 0xffff
         if !op.store {
-            operand = m.getMem(addr)
+            operand = c.m.getMem(addr)
         }
-        if addr&0xff00 != (addr-m.y)&0xff00 {
+        if addr&0xff00 != (addr-word(c.y))&0xff00 {
             extra_cycles += op.extra_page_cross
         }
         arglen = 1
     case ZPX:
-        args[0] = word(m.nextByte())
-        addr = word((args[0] + m.x) & 0xff)
+        args[0] = c.nextByte()
+        addr = word((args[0] + c.x) & 0xff)
         if !op.store {
-            operand = m.getMem(addr)
+            operand = c.m.getMem(addr)
         }
         arglen = 1
     case ZPY:
-        args[0] = word(m.nextByte())
-        addr = word((args[0] + m.x) & 0xff)
+        args[0] = c.nextByte()
+        addr = word((args[0] + c.x) & 0xff)
         if !op.store {
-            operand = m.getMem(addr)
+            operand = c.m.getMem(addr)
         }
         arglen = 1
     default:

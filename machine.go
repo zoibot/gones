@@ -2,27 +2,36 @@ package gones
 
 
 type Machine struct {
-    a, x, y, s, p byte
-    pc            word
+    cpu *CPU
+    ppu *PPU
+    rom *ROM
 }
 
-func (m *Machine) nextByte() byte {
-    m.pc++
-    return m.getMem(m.pc - 1)
-}
-
-func (m *Machine) nextWordArgs() (word, byte, byte) {
-    lo := m.getMem(m.pc)
-    m.pc++
-    hi := m.getMem(m.pc)
-    m.pc++
-    return word(hi)<<8 + word(lo), hi, lo
+func MakeMachine(romname string) *Machine {
+    m := &Machine{}
+    m.cpu = makeCPU(m)
+    return m
 }
 
 func (m *Machine) getMem(addr word) byte {
-    return 0
+    switch addr {
+        case addr < 0x2000:
+            return m.mem[addr & 0x7ff]
+        case addr < 0x4000:
+            //ppu
+            break
+        case addr < 0x4018:
+            //apu etc
+            break
+        case addr < 0x8000:
+            rom.prg_ram[addr-0x6000]
+        default:
+            return rom.prg_rom
+    }
 }
 
 func (m *Machine) setMem(addr word, val byte) {
+}
 
+func (m *Machine) Run() {
 }
