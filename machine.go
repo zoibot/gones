@@ -3,12 +3,12 @@ package gones
 
 type Machine struct {
     a, x, y, s, p byte
-    pc word
+    pc            word
 }
 
 func (m *Machine) nextByte() byte {
     m.pc++
-    return m.getMem(m.pc-1)
+    return m.getMem(m.pc - 1)
 }
 
 func (m *Machine) nextWordArgs() (word, byte, byte) {
