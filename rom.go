@@ -57,5 +57,5 @@ func (r *ROM) loadRom(f *os.File) {
     } else {
         r.prg_ram = make([]byte, uint(prg_ram_size) * 0x4000)
     }
-    fmt.Printf("Rom loaded successfully!")
+    fmt.Printf("Rom loaded successfully!\n")
 }

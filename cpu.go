@@ -26,7 +26,7 @@ func makeCPU(m *Machine) *CPU {
 }
 
 func (c *CPU) regs() string {
-    return fmt.Sprintf("a: %02X x: %02X y: %02X s: %02X p: %02X", c.a, c.x, c.y, c.s, c.p)
+    return fmt.Sprintf("A:%02X X:%02X Y:%02X P:%02X SP:%02X", c.a, c.x, c.y, c.p, c.s)
 }
 
 func (c *CPU) reset() {
@@ -40,7 +40,7 @@ func (c *CPU) setFlag(flag byte, val bool) {
     if val {
         c.p |= flag
     } else {
-        c.p = ^flag
+        c.p &= ^flag
     }
 }
 
@@ -241,7 +241,7 @@ func (c *CPU) runInstruction(inst *Instruction) {
     case SBC:
         a7 = c.a & (1 << 7)
         m7 = inst.operand & (1 << 7)
-        result = word(c.a - inst.operand)
+        result = word(c.a) - word(inst.operand)
         if(!c.getFlag(C)) {
             result -= 1
         }
@@ -424,7 +424,7 @@ func (c *CPU) runInstruction(inst *Instruction) {
         c.m.setMem(inst.addr, inst.operand)
 		a7 = c.a & (1 << 7)
         m7 = inst.operand & (1 << 7)
-        result = word(c.a + inst.operand)
+        result = word(c.a) + word(inst.operand)
         if m != 0  {
             result += 1
         }

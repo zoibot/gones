@@ -40,17 +40,28 @@ func (m *Machine) getMem(addr word) byte {
 }
 
 func (m *Machine) setMem(addr word, val byte) {
+    switch true {
+        case addr < 0x2000:
+            m.mem[addr & 0x7ff] = val
+        case addr < 0x4000:
+            //ppu
+        case addr < 0x4018:
+            //apu etc
+        case addr < 0x8000:
+            m.rom.prg_ram[addr-0x6000] = val
+        default:
+            break //mapper write
+    }
 }
 
 func (m *Machine) Run() {
     m.cpu.reset()
     var inst = Instruction{}
+    pc := word(0)
     for true {
+        pc = m.cpu.pc
         inst = m.cpu.nextInstruction()
-        if m.cpu.pc == 2 {
-            break
-        }
-        fmt.Printf("%X %v %s\n", m.cpu.pc, inst, m.cpu.regs())
+        fmt.Printf("%X  %v %s\n", pc, inst, m.cpu.regs())
         m.cpu.runInstruction(&inst)
     }
 }

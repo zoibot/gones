@@ -399,6 +399,7 @@ var Opcodes = [0x100]Opcode{
 
 type Instruction struct {
     op           Opcode
+    opcode       byte
     extra_cycles int
     addr         word
     operand      byte
@@ -411,13 +412,32 @@ func (o Opcode) String() string {
 }
 
 func (i Instruction) String() string {
+    args := ""
+    switch i.op.addr_mode {
+        case IMM:
+            args = fmt.Sprintf("#$%02X                       ", i.operand)
+        case REL:
+            args = fmt.Sprintf("$%04X                      ", i.addr)
+        case ZP, ZP_ST:
+            args = fmt.Sprintf("$%02X                        ", i.addr)
+        case ABS, ABS_ST:
+            args = fmt.Sprintf("$%04X                      ", i.addr)
+        case A:
+            args = "A                          "
+        default:
+            args = "                           "
+    }
+    c := ' '
+    if i.op.illegal {
+        c = '*'
+    }
     switch (i.arglen) {
     case 0:
-        return fmt.Sprintf("%02X       %v", i.op.op, i.op)
+        return fmt.Sprintf("%02X       %c%v %s", i.opcode, c, i.op, args)
     case 1:
-        return fmt.Sprintf("%02X %02X    %v", i.op.op, i.args[0], i.op)
+        return fmt.Sprintf("%02X %02X    %c%v %s", i.opcode, i.args[0], c, i.op, args)
     case 2:
-        return fmt.Sprintf("%02X %02X %02X %v", i.op.op, i.args[0], i.args[1], i.op)
+        return fmt.Sprintf("%02X %02X %02X %c%v %s", i.opcode, i.args[0], i.args[1], c, i.op, args)
     default:
         return ""
     }
@@ -448,19 +468,18 @@ func (c *CPU) nextInstruction() Instruction {
         args[0] = byte(addr)
         arglen = 1
     case ABS:
-        addr, args[0], args[1] = c.nextWordArgs()
+        addr, args[1], args[0] = c.nextWordArgs()
         operand = c.m.getMem(addr)
         arglen = 2
     case ABS_ST:
-        addr, args[0], args[1] = c.nextWordArgs()
+        addr, args[1], args[0] = c.nextWordArgs()
         arglen = 2
     case ABSI:
-        i_addr, args[0], args[1] = c.nextWordArgs()
-        addr = wordFromBytes((c.m.getMem(i_addr)),
-            c.m.getMem(i_addr+1&0xff+i_addr&0xff00))
+        i_addr, args[1], args[0] = c.nextWordArgs()
+        addr = wordFromBytes(c.m.getMem((i_addr+1)&0xff+(i_addr&0xff00)), (c.m.getMem(i_addr)))
         arglen = 2
     case ABSY:
-        i_addr, args[0], args[1] = c.nextWordArgs()
+        i_addr, args[1], args[0] = c.nextWordArgs()
         addr = i_addr + word(c.y)&0xffff
         if !op.store {
             operand = c.m.getMem(addr)
@@ -470,7 +489,7 @@ func (c *CPU) nextInstruction() Instruction {
         }
         arglen = 2
     case ABSX:
-        i_addr, args[0], args[1] = c.nextWordArgs()
+        i_addr, args[1], args[0] = c.nextWordArgs()
         addr = i_addr + word(c.x)&0xffff
         if !op.store {
             operand = c.m.getMem(addr)
@@ -487,15 +506,15 @@ func (c *CPU) nextInstruction() Instruction {
     case IXID:
         args[0] = c.nextByte()
         i_addr = word((args[0] + c.x) & 0xff)
-        addr = wordFromBytes(c.m.getMem(i_addr), c.m.getMem((i_addr+1)&0xff))
+        addr = wordFromBytes(c.m.getMem((i_addr+1)&0xff), c.m.getMem(i_addr))
         if !op.store {
             operand = c.m.getMem(addr)
         }
         arglen = 1
     case IDIX:
         args[0] = c.nextByte()
-        addr = wordFromBytes(c.m.getMem(word(args[0])),
-                    c.m.getMem(word(args[0]+1&0xff)))
+        addr = wordFromBytes(c.m.getMem(word(args[0]+1&0xff)),
+                    c.m.getMem(word(args[0])))
         addr += word(c.y)
         addr &= 0xffff
         if !op.store {
@@ -522,5 +541,5 @@ func (c *CPU) nextInstruction() Instruction {
     default:
         arglen = 0
     }
-    return Instruction{op, extra_cycles, addr, operand, args, arglen}
+    return Instruction{op, opcode, extra_cycles, addr, operand, args, arglen}
 }
