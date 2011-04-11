@@ -280,7 +280,7 @@ func (c *CPU) runInstruction(inst *Instruction) {
         c.m.setMem(inst.addr, inst.operand)
 		a7 = c.a & (1 << 7)
         m7 = inst.operand & (1 << 7)
-        result = word(c.a - inst.operand)
+        result = word(c.a) - word(inst.operand)
         if(!c.getFlag(C)) {
             result -= 1
         }

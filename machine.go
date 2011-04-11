@@ -40,6 +40,9 @@ func (m *Machine) getMem(addr word) byte {
 }
 
 func (m *Machine) setMem(addr word, val byte) {
+    if addr == 0x0 {
+        fmt.Printf("setting 0: %X\n", val) //C64C
+    }
     switch true {
         case addr < 0x2000:
             m.mem[addr & 0x7ff] = val

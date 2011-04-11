@@ -533,7 +533,7 @@ func (c *CPU) nextInstruction() Instruction {
         arglen = 1
     case ZPY:
         args[0] = c.nextByte()
-        addr = word((args[0] + c.x) & 0xff)
+        addr = word((args[0] + c.y) & 0xff)
         if !op.store {
             operand = c.m.getMem(addr)
         }
