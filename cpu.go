@@ -25,10 +25,14 @@ func makeCPU(m *Machine) *CPU {
     return &CPU{0,0,0,0,34,0,0,false,0,m}
 }
 
+func (c *CPU) regs() string {
+    return fmt.Sprintf("a: %02X x: %02X y: %02X s: %02X p: %02X", c.a, c.x, c.y, c.s, c.p)
+}
+
 func (c *CPU) reset() {
     c.s -= 3
     c.p |= 0x04
-    c.pc = wordFromBytes(c.m.getMem(0xfffd), c.m.getMem(0xfffc))
+    c.pc = 0xc000//wordFromBytes(c.m.getMem(0xfffd), c.m.getMem(0xfffc))
     //apu stuff
 }
 
@@ -58,8 +62,7 @@ func (c *CPU) push2(val word) {
 
 func (c *CPU) pop2() word {
     c.s += 2
-    var r word = wordFromBytes(c.m.getMem(word((c.s-1) & 0xff) | 0x100),
-                    c.m.getMem(word(c.s) | 0x100))
+    var r word = wordFromBytes(c.m.getMem(word(c.s) | 0x100), c.m.getMem(word((c.s-1) & 0xff) | 0x100))
     return r
 }
 

@@ -1,5 +1,7 @@
 package gones
 
+import "fmt"
+
 type op int
 
 const (
@@ -86,6 +88,17 @@ const (
     SXA
     LAR
 )
+var opnames = []string{ "BRK", "ORA", "ASL", "SLO", "PHP", "ASL", "NOP", "BPL", "CLC",
+					"JSR", "AND", "RLA", "TSX", "BIT", "ROL", "PLP", "ROL", "BMI",
+					"SEC", "RTI", "EOR", "SRE", "PHA", "LSR", "PLA", "LSR", "JMP",
+					"BVC", "CLI", "RTS", "ADC", "ROR", "BVS", "RRA", "SEI", "ROR",
+					"STA", "SAX", "STY", "STX", "DEY", "DEX", "TXA", "BCC", "TYA",
+					"TXS", "LDY", "LDA", "LDX", "LAX", "TAY", "TAX", "BCS", "CLV",
+					"CPY", "CPX", "CMP", "DEC", "DCP", "INY", "INX", "BNE", "CLD",
+					"SBC", "ISB", "INC", "BEQ", "SED", "DOP", "AAC", "ASR", "ARR",
+					"ATX", "AXS", "TOP", "SYA", "KIL", "XAA", "AXA", "XAS", "SXA",
+					"LAR" };
+
 
 type address_mode int
 
@@ -393,15 +406,25 @@ type Instruction struct {
     arglen       int
 }
 
-func (o op) String() string {
-    return "FOO"
+func (o Opcode) String() string {
+    return opnames[o.op]
 }
 
-func (i *Instruction) String() string {
-    return i.op.op.String()
+func (i Instruction) String() string {
+    switch (i.arglen) {
+    case 0:
+        return fmt.Sprintf("%02X       %v", i.op.op, i.op)
+    case 1:
+        return fmt.Sprintf("%02X %02X    %v", i.op.op, i.args[0], i.op)
+    case 2:
+        return fmt.Sprintf("%02X %02X %02X %v", i.op.op, i.args[0], i.args[1], i.op)
+    default:
+        return ""
+    }
+    return ""
 }
 
-func (c *CPU) next_instruction() Instruction {
+func (c *CPU) nextInstruction() Instruction {
     opcode := c.nextByte()
     extra_cycles := 0
     op := Opcodes[opcode]
