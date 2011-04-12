@@ -16,6 +16,7 @@ type ROM struct {
     prg_rom [2][]byte
     prg_banks []byte
     flags6, flags7 byte
+    mirror int
 }
 
 func (r *ROM) loadRom(f *os.File) {
@@ -31,6 +32,11 @@ func (r *ROM) loadRom(f *os.File) {
     r.chr_size = header[5]
     r.flags6 = header[6]
     r.flags7 = header[7]
+    if r.flags6 & 1 != 0 {
+        r.mirror = VERTICAL
+    } else {
+        r.mirror = HORIZONTAL
+    }
     //mapper stuff
     prg_ram_size := header[8]
     if r.flags6 & (1<<2) != 0 {

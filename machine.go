@@ -1,15 +1,27 @@
 package gones
 
 import (
+"⚛sdl"
 "os"
 "fmt"
 )
+
+var keymap = []int{sdl.K_z,
+                    sdl.K_x,
+                    sdl.K_s,
+                    sdl.K_RETURN,
+                    sdl.K_UP,
+                    sdl.K_DOWN,
+                    sdl.K_LEFT,
+                    sdl.K_RIGHT}
 
 type Machine struct {
     cpu *CPU
     ppu *PPU
     rom *ROM
     mem [0x800]byte
+    read_input_state byte
+    keys [8]byte
 }
 
 func MakeMachine(romname string) *Machine {
@@ -27,9 +39,17 @@ func (m *Machine) getMem(addr word) byte {
         case addr < 0x2000:
             return m.mem[addr & 0x7ff]
         case addr < 0x4000:
-            //ppu
-            return 0
+            return m.ppu.readRegister(int(addr & 7))
         case addr < 0x4018:
+            switch addr {
+                case 0x4016:
+                    if m.read_input_state < 8 {
+                        m.read_input_state++
+                        return m.keys[m.read_input_state-1]
+                    } else {
+                        return 1
+                    }
+            }
             //apu etc
             return 0
         case addr < 0x8000:
@@ -45,8 +65,18 @@ func (m *Machine) setMem(addr word, val byte) {
         case addr < 0x2000:
             m.mem[addr & 0x7ff] = val
         case addr < 0x4000:
-            //ppu
+            m.ppu.writeRegister(int(addr & 7), val)
         case addr < 0x4018:
+            switch addr {
+                case 0x4016:
+                    if val & 1 != 0 {
+                        keys := []uint8(sdl.GetKeyState())
+                        for i := 0; i < 8; i++ {
+                            m.keys[i] = keys[keymap[i]]
+                        }
+                        m.read_input_state = 0
+                    }
+            }
             //apu etc
         case addr < 0x8000:
             m.rom.prg_ram[addr-0x6000] = val
@@ -59,12 +89,14 @@ func (m *Machine) Run() {
     m.cpu.reset()
     var inst = Instruction{}
     pc := word(0)
-    cycles := 0
+    debug := false
     for true {
         pc = m.cpu.pc
         inst = m.cpu.nextInstruction()
-        fmt.Printf("%X  %v %s\n", pc, inst, m.cpu.regs())
-        cycles = m.cpu.runInstruction(&inst)
-        m.ppu.run(cycles)
+        if debug {
+            fmt.Printf("%X  %v %s\n", pc, inst, m.cpu.regs())
+        }
+        m.cpu.runInstruction(&inst)
+        m.ppu.run()
     }
 }

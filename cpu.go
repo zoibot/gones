@@ -15,9 +15,9 @@ const (
 type CPU struct {
     a, x, y, s, p byte
     pc            word
-    scheduledIrq int
-    irqWaiting   bool
-    cycle_count  int
+    scheduledIrq  int
+    irqWaiting    bool
+    cycleCount    uint64
     m             *Machine
 }
 
@@ -32,7 +32,7 @@ func (c *CPU) regs() string {
 func (c *CPU) reset() {
     c.s -= 3
     c.p |= 0x04
-    c.pc = 0xc000//wordFromBytes(c.m.getMem(0xfffd), c.m.getMem(0xfffc))
+    c.pc = wordFromBytes(c.m.getMem(0xfffd), c.m.getMem(0xfffc))
     //apu stuff
 }
 
@@ -93,6 +93,11 @@ func (c *CPU) irq() {
 }
 
 func (c *CPU) nmi() {
+    c.push2(c.pc)
+    c.push(c.p)
+    c.setFlag(I, true)
+    c.pc = wordFromBytes(c.m.getMem(0xfffb), c.m.getMem(0xfffa))
+    c.cycleCount += 7
 }
 
 func (c *CPU) branch(cond bool, inst *Instruction) {
@@ -441,6 +446,6 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         fmt.Printf("Unsupported opcode! %d", int(inst.op.op))
     }
 
-    c.cycle_count += inst.op.cycles + inst.extra_cycles
+    c.cycleCount += uint64(inst.op.cycles + inst.extra_cycles)
     return inst.op.cycles + inst.extra_cycles
 }
