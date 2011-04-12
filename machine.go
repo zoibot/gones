@@ -14,10 +14,11 @@ type Machine struct {
 
 func MakeMachine(romname string) *Machine {
     m := &Machine{}
-    m.cpu = makeCPU(m)
     m.rom = &ROM{}
     f, _ := os.Open(romname, 0, 0)
     m.rom.loadRom(f)
+    m.cpu = makeCPU(m)
+    m.ppu = makePPU(m)
     return m
 }
 
@@ -40,9 +41,6 @@ func (m *Machine) getMem(addr word) byte {
 }
 
 func (m *Machine) setMem(addr word, val byte) {
-    if addr == 0x0 {
-        fmt.Printf("setting 0: %X\n", val) //C64C
-    }
     switch true {
         case addr < 0x2000:
             m.mem[addr & 0x7ff] = val
@@ -61,10 +59,12 @@ func (m *Machine) Run() {
     m.cpu.reset()
     var inst = Instruction{}
     pc := word(0)
+    cycles := 0
     for true {
         pc = m.cpu.pc
         inst = m.cpu.nextInstruction()
         fmt.Printf("%X  %v %s\n", pc, inst, m.cpu.regs())
-        m.cpu.runInstruction(&inst)
+        cycles = m.cpu.runInstruction(&inst)
+        m.ppu.run(cycles)
     }
 }

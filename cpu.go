@@ -113,7 +113,7 @@ func (c *CPU) compare(a byte, b byte) {
     c.setFlag(C, a >= b)
 }
 
-func (c *CPU) runInstruction(inst *Instruction) {
+func (c *CPU) runInstruction(inst *Instruction) int {
     var (
     m byte = 0
     a7 byte = 0
@@ -442,4 +442,5 @@ func (c *CPU) runInstruction(inst *Instruction) {
     }
 
     c.cycle_count += inst.op.cycles + inst.extra_cycles
+    return inst.op.cycles + inst.extra_cycles
 }
