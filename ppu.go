@@ -46,10 +46,16 @@ func makePPU(m *Machine) *PPU {
     p.pixels = (*[256*240]int)(screen.Pixels)[:]
     for i := word(0); i < 0x4000; i++ {
         p.mirrorTable[i] = i
+        p.mem[i] = 0xff
     }
     p.setMirroring(0x3000, 0x2000, 0xf00)
     p.currentMirroring = m.rom.mirror
+    p.setNTMirroring(p.currentMirroring)
     return &p
+}
+
+func (p *PPU) dump() string {
+    return fmt.Sprintf("CYC: %d SL: %d VADDR: %4X", p.cyc, p.sl, p.vaddr)
 }
 
 func (p *PPU) setMirroring(from word, to word, n word) {
@@ -146,14 +152,15 @@ func (p *PPU) writeRegister(num int, val byte)  {
         case 5:
             if p.latch {
                 p.taddr &= ^word(0x73e0)
-                p.taddr |= word((val >> 3) << 5)
-                p.taddr |= word((val & 0x7) << 12)
+                p.taddr |= word(val >> 3) << 5
+                p.taddr |= word(val & 0x7) << 12
             } else {
                 p.taddr &= ^word(0x1f)
                 p.taddr |= word(val >> 3)
                 p.xoff = val & 0x7
                 p.fineX = val & 0x7
             }
+            p.latch = !p.latch
         case 6:
             if p.latch {
                 p.taddr &= ^word(0xff)
@@ -195,6 +202,9 @@ func (p *PPU) setMem(addr word, val byte) {
         case addr < 0x2000:
             p.mach.rom.chr_rom[(addr&0x1000)>>12][addr&0xfff] = val
         case addr < 0x3f00:
+            if p.mirrorTable[addr] == 0x2000 {
+                fmt.Printf("supdawg val: %02X\n", val)
+            }
             p.mem[p.mirrorTable[addr]] = val
         default:
             if addr & 0xf == 0 { addr = 0 }
@@ -253,11 +263,11 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
     if p.pctrl & (1<<3) != 0 {
         baseSprAddr = 0x1000
     }*/
-    for num > 0 {
+    for num != 0 {
         ntAddr := 0x2000 | (p.vaddr & 0xfff)
         atBase := (ntAddr & ^word(0x3ff)) + 0x3c0
         ntVal := word(p.getMem(ntAddr))
-        ptAddr := ntVal << 4 + basePtAddr
+        ptAddr := (ntVal << 4) + basePtAddr
         row := (ntAddr >> 6) & 1
         col := (ntAddr & 2) >> 1
         atVal := p.getMem(atBase + ((ntAddr & 0x1f)>>2) + ((ntAddr & 0x3e0) >> 7) * 8)
@@ -283,7 +293,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
         p.fineX &= 7
         xoff++
         if p.fineX == 0 {
-            if p.vaddr & 0x1f == 0x1f {
+            if (p.vaddr & 0x1f) == 0x1f {
                 p.vaddr ^= 0x400
                 p.vaddr -= 0x1f
             } else {

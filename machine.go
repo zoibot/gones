@@ -31,6 +31,9 @@ func MakeMachine(romname string) *Machine {
     m.rom.loadRom(f)
     m.cpu = makeCPU(m)
     m.ppu = makePPU(m)
+    for i := 0; i < 0x800; i++ {
+        m.mem[i] = 0xff
+    }
     return m
 }
 
@@ -94,7 +97,7 @@ func (m *Machine) Run() {
         pc = m.cpu.pc
         inst = m.cpu.nextInstruction()
         if debug {
-            fmt.Printf("%X  %v %s\n", pc, inst, m.cpu.regs())
+            fmt.Printf("%X  %v %s %s\n", pc, inst, m.cpu.regs(), m.ppu.dump())
         }
         m.cpu.runInstruction(&inst)
         m.ppu.run()

@@ -22,11 +22,11 @@ type CPU struct {
 }
 
 func makeCPU(m *Machine) *CPU {
-    return &CPU{0,0,0,0,34,0,0,false,0,m}
+    return &CPU{0,0,0,0,0x24,0,0,false,0,m}
 }
 
 func (c *CPU) regs() string {
-    return fmt.Sprintf("A:%02X X:%02X Y:%02X P:%02X SP:%02X", c.a, c.x, c.y, c.p, c.s)
+    return fmt.Sprintf("A:%2X X:%2X Y:%2X P:%2X SP:%2X ", c.a, c.x, c.y, c.p, c.s)
 }
 
 func (c *CPU) reset() {
@@ -234,7 +234,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
     case ADC:
         a7 = c.a & (1 << 7)
         m7 = inst.operand & (1 << 7)
-        result = word(c.a + inst.operand)
+        result = word(c.a) + word(inst.operand)
         if(c.getFlag(C)) {
             result += 1
         }
