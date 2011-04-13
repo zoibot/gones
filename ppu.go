@@ -27,7 +27,8 @@ type PPU struct {
     pctrl byte
     //position
     xoff, fineX byte
-    curSprs []*Sprite
+    curSprs [8]Sprite
+    numSprs int
     currentMirroring int
     vaddr, taddr word
     sl int
@@ -37,6 +38,11 @@ type PPU struct {
 }
 
 type Sprite struct {
+    y, tile, attrs, x byte
+}
+
+func (s Sprite) setSpr(m []byte) {
+    s.y,s.tile,s.attrs,s.x = m[0], m[1], m[2], m[3]
 }
 
 func makePPU(m *Machine) *PPU {
@@ -231,6 +237,17 @@ func (p *PPU) newScanline() {
     p.vaddr |= (fineY+1)&7 << 12
     p.fineX = p.xoff
     //sprites
+    p.numSprs = 0
+    curY := byte(p.sl-1)
+    for i := 0; i < 64; i++ {
+        if p.objMem[i*4] <= curY && curY <= p.objMem[i*4]+8 {
+            p.curSprs[p.numSprs].setSpr(p.objMem[i:i+4])
+            p.numSprs++
+            if p.numSprs == 8 {
+                break
+            }
+        }
+    }
 }
 
 func (p *PPU) doVblank(renderingEnabled bool) {
