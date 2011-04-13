@@ -79,6 +79,11 @@ func (m *Machine) setMem(addr word, val byte) {
                         }
                         m.read_input_state = 0
                     }
+                case 0x4014:
+                    for v := word(0); v < 0x100; v++ {
+                        addr := (v + m.ppu.objAddr) & 0xff
+                        m.ppu.objMem[addr] = m.mem[(word(val) << 8) | v]
+                    }
             }
             //apu etc
         case addr < 0x8000:

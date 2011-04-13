@@ -241,7 +241,7 @@ func (p *PPU) newScanline() {
     curY := byte(p.sl-1)
     for i := 0; i < 64; i++ {
         if p.objMem[i*4] <= curY && curY <= p.objMem[i*4]+8 {
-            p.curSprs[p.numSprs].setSpr(p.objMem[i:i+4])
+            p.curSprs[p.numSprs].setSpr(p.objMem[i*4:i*4+4])
             p.numSprs++
             if p.numSprs == 8 {
                 break
@@ -269,17 +269,17 @@ func (p *PPU) doVblank(renderingEnabled bool) {
 
 func (p *PPU) renderPixels(x byte, y byte, num byte) {
     bgEnabled := p.pmask & (1<<3) != 0
-    //spriteEnabled := p.pmask & (1<<4) != 0
+    spriteEnabled := p.pmask & (1<<4) != 0
     fineY := (p.vaddr >> 12) & 7
     xoff := p.cyc
     basePtAddr := word(0x0)
     if p.pctrl & (1<<4) != 0 {
         basePtAddr = 0x1000
     }
-    /*baseSprAddr := 0x0
+    baseSprAddr := word(0x0)
     if p.pctrl & (1<<3) != 0 {
         baseSprAddr = 0x1000
-    }*/
+    }
     for num != 0 {
         ntAddr := 0x2000 | (p.vaddr & 0xfff)
         atBase := (ntAddr & ^word(0x3ff)) + 0x3c0
@@ -299,11 +299,61 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
         lo >>= (7-p.fineX)
         lo &= 1
         coli := word(0x3f00)
-        if hi|lo != 0 && bgEnabled { //TODO left clip
+        if hi|lo != 0 && bgEnabled && !(xoff < 8 && (p.pmask & 2 == 0)) {
             coli |= word(atVal | hi | lo)
         }
         //TODO sprites
-        color := colors[p.getMem(coli)]
+        if spriteEnabled && !(xoff < 8 && (p.pmask & 4 == 0)) {
+            cur := Sprite{}
+            for i := 0; i < p.numSprs; i++ {
+                if p.curSprs[i].x <= byte(xoff) && byte(xoff) < p.curSprs[i].x + 8 {
+                    tile := byte(0)
+                    cur = p.curSprs[i]
+                    pal := (1<<4) | ((cur.attrs & 3) << 2)
+                    xsoff := byte(xoff) - cur.x
+                    if cur.attrs & 1<<6 != 0 {
+                        xsoff = 7-xsoff
+                    }
+                    ysoff := y-cur.y-1
+                    if p.pctrl & (1<<5) != 0 { //8x16
+                        if cur.attrs & (1<<7) != 0 {
+                            ysoff = 15-ysoff
+                        }
+                        tile = cur.tile
+                        baseSprAddr = word(tile & 1) << 12
+                        tile &= ^byte(1)
+                        if ysoff > 7 {
+                            ysoff -= 7
+                            tile |= 1
+                        }
+                    } else {
+                        tile = cur.tile
+                        if cur.attrs & (1<<7) != 0 {
+                            ysoff = 7-ysoff
+                        }
+                    }
+                    pat := (word(tile) * 0x10) | baseSprAddr
+                    shi := p.getMem(pat+8+word(ysoff))
+                    slo := p.getMem(pat+word(ysoff))
+                    shi >>= (7-xsoff)
+                    shi &= 1
+                    shi <<= 1
+                    slo >>= (7-xsoff)
+                    slo &= 1
+
+                    if (hi|lo==0 && shi|slo!=0 || (cur.attrs & 1<<5 == 0)) {
+                        if (shi|slo != 0) {
+                            coli = 0x3f00 | word(pal | shi | slo)
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        color := 0
+        if int(p.getMem(coli)) < len(colors) {
+            color = colors[p.getMem(coli)]
+        }
         p.pixels[int(xoff) + int(y)*256] = color
         //setPixel
         p.fineX++
