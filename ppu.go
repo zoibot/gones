@@ -30,6 +30,7 @@ type PPU struct {
     xoff, fineX byte
     curSprs [8]Sprite
     numSprs int
+    sp0 bool
     currentMirroring int
     vaddr, taddr word
     sl int
@@ -39,10 +40,12 @@ type PPU struct {
 }
 
 type Sprite struct {
+    index int
     y, tile, attrs, x byte
 }
 
-func (s *Sprite) setSpr(m []byte) {
+func (s *Sprite) setSpr(index int, m []byte) {
+    s.index = index
     s.y,s.tile,s.attrs,s.x = m[0], m[1], m[2], m[3]
 }
 
@@ -242,8 +245,9 @@ func (p *PPU) newScanline() {
     p.numSprs = 0
     curY := byte(p.sl-1)
     s := Sprite{}
+    p.sp0 = false
     for i := 0; i < 64; i++ {
-        (&s).setSpr(p.objMem[i*4:i*4+4])
+        (&s).setSpr(i,p.objMem[i*4:i*4+4])
         if s.y <= curY && curY < s.y+8 {
             p.curSprs[p.numSprs] = s
             p.numSprs++
@@ -344,7 +348,10 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                     shi <<= 1
                     slo >>= (7-xsoff)
                     slo &= 1
-
+                    if (cur.index==0 && (hi|lo) !=0 && (shi|slo) != 0 && bgEnabled) {
+                        fmt.Printf("spr0hit\n")
+                        p.pstat |= 1<<6
+                    }
                     if (hi|lo==0 && shi|slo!=0 || (cur.attrs & 1<<5 == 0)) {
                         if (shi|slo != 0) {
                             coli = 0x3f00 | word(pal | shi | slo)

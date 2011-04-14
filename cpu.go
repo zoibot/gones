@@ -90,6 +90,11 @@ func (c *CPU) nextWordArgs() (word, byte, byte) {
 }
 
 func (c *CPU) irq() {
+    c.push2(c.pc)
+    c.push(c.p)
+    c.setFlag(I, true)
+    c.pc = wordFromBytes(c.m.getMem(0xffff), c.m.getMem(0xfffe))
+    c.cycleCount += 7
 }
 
 func (c *CPU) nmi() {
@@ -344,7 +349,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
 		c.setNZ(c.x)
 	case AXS:
 		c.x = c.a & c.x
-		result = word(c.x - inst.operand)
+		result = word(c.x) - word(inst.operand)
 		c.setFlag(C, result < 0x100)
 		c.x = byte(result & 0xff)
 		c.setNZ(c.x)

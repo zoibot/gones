@@ -89,7 +89,7 @@ func (m *Machine) setMem(addr word, val byte) {
         case addr < 0x8000:
             m.rom.prg_ram[addr-0x6000] = val
         default:
-            break //mapper write
+            m.rom.mapper.prgWrite(addr, val)
     }
 }
 
@@ -105,6 +105,7 @@ func (m *Machine) Run() {
             fmt.Printf("%X  %v %s %s\n", pc, inst, m.cpu.regs(), m.ppu.dump())
         }
         m.cpu.runInstruction(&inst)
+        m.ppu.setNTMirroring(m.rom.mirror)
         m.ppu.run()
     }
 }
