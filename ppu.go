@@ -41,7 +41,7 @@ type Sprite struct {
     y, tile, attrs, x byte
 }
 
-func (s Sprite) setSpr(m []byte) {
+func (s *Sprite) setSpr(m []byte) {
     s.y,s.tile,s.attrs,s.x = m[0], m[1], m[2], m[3]
 }
 
@@ -53,6 +53,9 @@ func makePPU(m *Machine) *PPU {
     for i := word(0); i < 0x4000; i++ {
         p.mirrorTable[i] = i
         p.mem[i] = 0xff
+    }
+    for i := int(0); i < 0x100; i++ {
+        p.objMem[i] = 0xff
     }
     p.setMirroring(0x3000, 0x2000, 0xf00)
     p.currentMirroring = m.rom.mirror
@@ -239,9 +242,11 @@ func (p *PPU) newScanline() {
     //sprites
     p.numSprs = 0
     curY := byte(p.sl-1)
+    s := Sprite{}
     for i := 0; i < 64; i++ {
-        if p.objMem[i*4] <= curY && curY <= p.objMem[i*4]+8 {
-            p.curSprs[p.numSprs].setSpr(p.objMem[i*4:i*4+4])
+        (&s).setSpr(p.objMem[i*4:i*4+4])
+        if s.y <= curY && curY < s.y+8 {
+            p.curSprs[p.numSprs] = s
             p.numSprs++
             if p.numSprs == 8 {
                 break
@@ -311,7 +316,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                     cur = p.curSprs[i]
                     pal := (1<<4) | ((cur.attrs & 3) << 2)
                     xsoff := byte(xoff) - cur.x
-                    if cur.attrs & 1<<6 != 0 {
+                    if cur.attrs & (1<<6) != 0 {
                         xsoff = 7-xsoff
                     }
                     ysoff := y-cur.y-1
