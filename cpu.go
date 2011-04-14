@@ -357,11 +357,15 @@ func (c *CPU) runInstruction(inst *Instruction) int {
 		m = c.y & (inst.args[1] + 1)
 		if inst.extra_cycles == 0 {
 			c.m.setMem(inst.addr, m)
+        } else {
+            inst.extra_cycles = 0
         }
 	case SXA:
 		m = c.x & (inst.args[1] + 1)
 		if inst.extra_cycles == 0 {
 			c.m.setMem(inst.addr, m)
+        } else {
+            inst.extra_cycles = 0
         }
     case ROR_A:
         m = c.a & 1
