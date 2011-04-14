@@ -16,6 +16,8 @@ type ROM struct {
     prg_rom [2][]byte
     prg_banks []byte
     flags6, flags7 byte
+    mapper_num byte
+    mapper Mapper
     mirror int
 }
 
@@ -37,7 +39,7 @@ func (r *ROM) loadRom(f *os.File) {
     } else {
         r.mirror = HORIZONTAL
     }
-    //mapper stuff
+    r.mapper_num = (r.flags7 & 0xf0) | ((r.flags6 & 0xf0)>>4)
     prg_ram_size := header[8]
     if r.flags6 & (1<<2) != 0 {
         fmt.Printf("loading trainer\n")
@@ -52,11 +54,7 @@ func (r *ROM) loadRom(f *os.File) {
     } else {
         r.chr_banks = make([]byte, 0x2000)
     }
-    //more mapper stuff
-    r.prg_rom[0] = r.prg_banks
-    r.prg_rom[1] = r.prg_banks
-    r.chr_rom[0] = r.chr_banks
-    r.chr_rom[1] = r.chr_banks[0x1000:]
+    r.mapper = loadMapper(r.mapper_num, r)
     fmt.Printf("prg size %d\nchr size %d\n", r.prg_size, r.chr_size)
     if prg_ram_size == 0 {
         r.prg_ram = make([]byte, 0x4000)
@@ -65,3 +63,5 @@ func (r *ROM) loadRom(f *os.File) {
     }
     fmt.Printf("Rom loaded successfully!\n")
 }
+
+

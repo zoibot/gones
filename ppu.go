@@ -13,6 +13,7 @@ const (
 
 type PPU struct {
     mach *Machine
+    cycles chan int
     //SDL stuff
     screen *sdl.Surface
     pixels []int
@@ -60,6 +61,7 @@ func makePPU(m *Machine) *PPU {
     p.setMirroring(0x3000, 0x2000, 0xf00)
     p.currentMirroring = m.rom.mirror
     p.setNTMirroring(p.currentMirroring)
+    p.cycles = make(chan int)
     return &p
 }
 
@@ -211,9 +213,6 @@ func (p *PPU) setMem(addr word, val byte) {
         case addr < 0x2000:
             p.mach.rom.chr_rom[(addr&0x1000)>>12][addr&0xfff] = val
         case addr < 0x3f00:
-            if p.mirrorTable[addr] == 0x2000 {
-                fmt.Printf("supdawg val: %02X\n", val)
-            }
             p.mem[p.mirrorTable[addr]] = val
         default:
             if addr & 0xf == 0 { addr = 0 }
@@ -377,7 +376,6 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
 }
 
 func (p *PPU) drawFrame() {
-    fmt.Printf("frame\n")
     p.sl = -2
     moreEvents := true
     for moreEvents {
@@ -391,6 +389,7 @@ func (p *PPU) drawFrame() {
             moreEvents = false
         }
     }
+    sdl.WM_SetCaption("Hello","")
     p.screen.Flip()
 }
 
