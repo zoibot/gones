@@ -341,7 +341,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                             ysoff = 7-ysoff
                         }
                     }
-                    pat := (word(tile) * 0x10) | baseSprAddr
+                    pat := (word(tile) << 4) + baseSprAddr
                     shi := p.getMem(pat+8+word(ysoff))
                     slo := p.getMem(pat+word(ysoff))
                     shi >>= (7-xsoff)
@@ -352,7 +352,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                     if (cur.index==0 && (hi|lo) !=0 && (shi|slo) != 0 && bgEnabled) {
                         p.pstat |= 1<<6
                     }
-                    if (hi|lo==0 && shi|slo!=0 || (cur.attrs & 1<<5 == 0)) {
+                    if ((hi|lo==0 && shi|slo!=0) || (cur.attrs & (1<<5) == 0)) {
                         if (shi|slo != 0) {
                             coli = 0x3f00 | word(pal | shi | slo)
                             break
