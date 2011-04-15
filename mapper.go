@@ -133,6 +133,7 @@ func (u *UNROM) load(rom *ROM) {
 
 func (u *UNROM) prgWrite(addr word, val byte) {
     bank := int(val & 7)
+    //fmt.Printf("switching bank: %v %04x %04x\n", bank, 0x4000*bank, len(u.rom.prg_banks))
     u.rom.prg_rom[0] = u.rom.prg_banks[0x4000 * bank:]
 }
 

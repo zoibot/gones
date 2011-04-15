@@ -1,7 +1,10 @@
 package gones
 
-import "⚛sdl"
-import "fmt"
+import (
+"⚛sdl"
+"fmt"
+"os"
+)
 
 const (
     HORIZONTAL = iota
@@ -30,7 +33,6 @@ type PPU struct {
     xoff, fineX byte
     curSprs [8]Sprite
     numSprs int
-    sp0 bool
     currentMirroring int
     vaddr, taddr word
     sl int
@@ -245,10 +247,9 @@ func (p *PPU) newScanline() {
     p.numSprs = 0
     curY := byte(p.sl-1)
     s := Sprite{}
-    p.sp0 = false
     for i := 0; i < 64; i++ {
         (&s).setSpr(i,p.objMem[i*4:i*4+4])
-        if s.y <= curY && curY < s.y+8 {
+        if s.y <= curY && (curY < s.y+8 || (p.pctrl & (1<<5)!=0 && curY< s.y+16)) {
             p.curSprs[p.numSprs] = s
             p.numSprs++
             if p.numSprs == 8 {
@@ -331,7 +332,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                         baseSprAddr = word(tile & 1) << 12
                         tile &= ^byte(1)
                         if ysoff > 7 {
-                            ysoff -= 7
+                            ysoff -= 8
                             tile |= 1
                         }
                     } else {
@@ -349,7 +350,6 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                     slo >>= (7-xsoff)
                     slo &= 1
                     if (cur.index==0 && (hi|lo) !=0 && (shi|slo) != 0 && bgEnabled) {
-                        fmt.Printf("spr0hit\n")
                         p.pstat |= 1<<6
                     }
                     if (hi|lo==0 && shi|slo!=0 || (cur.attrs & 1<<5 == 0)) {
@@ -391,6 +391,7 @@ func (p *PPU) drawFrame() {
             switch e := event.(type) {
                 case sdl.QuitEvent:
                     sdl.Quit()
+                    os.Exit(0)
             }
         default:
             moreEvents = false

@@ -447,6 +447,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(c.a)
         r7 = c.a & (1 << 7)
         c.setFlag(V, !((a7 != m7) || ((a7 == m7) && (m7 == r7))))
+    //unclear instructions
     case XAA:
     case AXA:
     case XAS:
