@@ -1,5 +1,7 @@
 package gones
 
+import "image"
+
 type word uint16
 
 func wordFromBytes(hi byte, lo byte) word {
@@ -13,6 +15,13 @@ func min(a int, b int) int {
         return b
     }
     return 0
+}
+
+func intToColor(col int) image.RGBAColor {
+    r := byte((col & 0xff0000) >> 16)
+    g := byte((col & 0x00ff00) >> 8)
+    b := byte((col & 0x0000ff))
+    return image.RGBAColor{r,g,b,0}
 }
 
 var colors = []int{

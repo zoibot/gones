@@ -55,6 +55,8 @@ func (m *Machine) getMem(addr word) byte {
             }
             //apu etc
             return 0
+        case addr < 0x6000:
+            return 0
         case addr < 0x8000:
             return m.rom.prg_ram[addr-0x6000]
         default:
@@ -86,6 +88,8 @@ func (m *Machine) setMem(addr word, val byte) {
                     }
             }
             //apu etc
+        case addr < 0x6000:
+            return
         case addr < 0x8000:
             m.rom.prg_ram[addr-0x6000] = val
         default:

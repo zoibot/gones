@@ -2,6 +2,8 @@ package gones
 
 import (
 "⚛sdl"
+"image"
+"image/png"
 "fmt"
 "os"
 )
@@ -392,6 +394,12 @@ func (p *PPU) drawFrame() {
                 case sdl.QuitEvent:
                     sdl.Quit()
                     os.Exit(0)
+                case sdl.KeyboardEvent:
+                    kevent := (sdl.KeyboardEvent)event
+                    switch kevent.Keysym {
+                        case sdl.K_d:
+                            p.dumpNTs()
+                    }
             }
         default:
             moreEvents = false
@@ -452,4 +460,57 @@ func (p *PPU) run() {
                 p.drawFrame()
         }
     }
+}
+
+func (p *PPU) dumpNTs() {
+    img := image.NewRGBA(512, 480)
+    basePtAddr := word(0)
+    if p.pctrl & (1<<4) != 0 {
+        basePtAddr = 0x1000
+    }
+    x := uint(0)
+    y := uint(0)
+    for nt := word(0); nt < 0x3000; nt += 0x400 {
+        at_base := nt + 0x3c0
+        for ntaddr := nt; ntaddr < nt+0x3c0; ntaddr++ {
+            ntval := p.getMem(ntaddr)
+            ptaddr := (word(ntval) << 4) + basePtAddr
+            row := (ntaddr >> 6) & 1
+            col := (ntaddr & 2) >> 1
+            atval := p.getMem(at_base + ((ntaddr & 0x1f)>>2) + ((ntaddr & 0x3e0) >> 7)*8)
+            atval >>= 4 * row + 2 * col
+            atval &= 3
+            atval <<= 2
+            for fy := uint(0); fy < 8; fy++ {
+                for fx := uint(0); fx < 8; fx++ {
+                    hi := p.getMem(ptaddr+word(8+fy))
+                    lo := p.getMem(ptaddr+word(fy))
+                    hi >>= (7-fx)
+                    hi &= 1
+                    hi <<= 1
+                    lo >>= 7-fx
+                    lo &= 1
+                    coli := word(0x3f00)
+                    if hi|lo != 0 {
+                        coli |= word( atval | hi | lo)
+                    }
+                    color := colors[p.getMem(coli)]
+                    img.Set(int(x+fx), int(y+fy), intToColor(color))
+                }
+            }
+            x += 8
+            if x % 256 == 0 {
+                x -= 256
+                y += 8
+            }
+        }
+        x += 256
+        y -= 240
+        if x == 512 {
+            x = 0
+            y = 240
+        }
+    }
+    f, _ := os.Open("nt.png", os.O_WRONLY, 0)
+    png.Encode(f, img)
 }
