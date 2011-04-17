@@ -35,10 +35,8 @@ func (r *ROM) loadRom(f *os.File) {
     r.flags6 = header[6]
     r.flags7 = header[7]
     if r.flags6 & 1 != 0 {
-        fmt.Printf("Vertical")
         r.mirror = VERTICAL
     } else {
-        fmt.Printf("Horizontal")
         r.mirror = HORIZONTAL
     }
     r.mapper_num = (r.flags7 & 0xf0) | ((r.flags6 & 0xf0)>>4)

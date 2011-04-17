@@ -66,8 +66,7 @@ func makePPU(m *Machine) *PPU {
         p.objMem[i] = 0xff
     }
     p.setMirroring(0x3000, 0x2000, 0xf00)
-    p.currentMirroring = m.rom.mirror
-    p.setNTMirroring(p.currentMirroring)
+    p.setNTMirroring(m.rom.mirror)
     p.cycles = make(chan int)
     return &p
 }
@@ -84,6 +83,7 @@ func (p *PPU) setMirroring(from word, to word, n word) {
 
 func (p *PPU) setNTMirroring(t int) {
     if t == p.currentMirroring { return }
+    p.currentMirroring = t
     switch t {
 	case VERTICAL:
 		p.setMirroring(0x2000, 0x2000, 0x400);
@@ -395,8 +395,8 @@ func (p *PPU) drawFrame() {
                     sdl.Quit()
                     os.Exit(0)
                 case sdl.KeyboardEvent:
-                    kevent := (sdl.KeyboardEvent)event
-                    switch kevent.Keysym {
+                    kevent := event.(sdl.KeyboardEvent)
+                    switch kevent.Keysym.Sym {
                         case sdl.K_d:
                             p.dumpNTs()
                     }
@@ -405,7 +405,7 @@ func (p *PPU) drawFrame() {
             moreEvents = false
         }
     }
-    sdl.WM_SetCaption("Hello","")
+    sdl.WM_SetCaption("gones","")
     p.screen.Flip()
 }
 
@@ -470,7 +470,7 @@ func (p *PPU) dumpNTs() {
     }
     x := uint(0)
     y := uint(0)
-    for nt := word(0); nt < 0x3000; nt += 0x400 {
+    for nt := word(0x2000); nt < 0x3000; nt += 0x400 {
         at_base := nt + 0x3c0
         for ntaddr := nt; ntaddr < nt+0x3c0; ntaddr++ {
             ntval := p.getMem(ntaddr)
@@ -511,6 +511,9 @@ func (p *PPU) dumpNTs() {
             y = 240
         }
     }
-    f, _ := os.Open("nt.png", os.O_WRONLY, 0)
+    f, e := os.Open("nt.png", os.O_WRONLY | os.O_CREAT, 0666)
+    if f == nil {
+        fmt.Printf("error opening file. %v\n", e.String())
+    }
     png.Encode(f, img)
 }

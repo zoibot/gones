@@ -21,7 +21,7 @@ func intToColor(col int) image.RGBAColor {
     r := byte((col & 0xff0000) >> 16)
     g := byte((col & 0x00ff00) >> 8)
     b := byte((col & 0x0000ff))
-    return image.RGBAColor{r,g,b,0}
+    return image.RGBAColor{r,g,b,0xff}
 }
 
 var colors = []int{
