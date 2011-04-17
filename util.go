@@ -1,6 +1,7 @@
 package gones
 
 import "image"
+import "⚛sdl"
 
 type word uint16
 

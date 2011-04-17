@@ -1,7 +1,6 @@
 package gones
 
 import (
-"⚛sdl"
 "image"
 "image/png"
 "fmt"
@@ -19,9 +18,9 @@ const (
 type PPU struct {
     mach *Machine
     cycles chan int
-    //SDL stuff
-    screen *sdl.Surface
-    pixels []int
+    frames chan []int
+    screen []int
+    //cycles
     cycleCount uint64
     //memory
     mem [0x4000]byte
@@ -53,11 +52,9 @@ func (s *Sprite) setSpr(index int, m []byte) {
     s.y,s.tile,s.attrs,s.x = m[0], m[1], m[2], m[3]
 }
 
-func makePPU(m *Machine) *PPU {
-    sdl.Init(sdl.INIT_VIDEO);
-    screen := sdl.SetVideoMode(256, 240, 32, 0)
-    p := PPU{mach: m, screen: screen}
-    p.pixels = (*[256*240]int)(screen.Pixels)[:]
+func makePPU(m *Machine, frames chan []int) *PPU {
+    p := PPU{mach: m, frames: frames}
+    p.screen = make([]int, 256*240)
     for i := word(0); i < 0x4000; i++ {
         p.mirrorTable[i] = i
         p.mem[i] = 0xff
@@ -367,8 +364,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
         if int(p.getMem(coli)) < len(colors) {
             color = colors[p.getMem(coli)]
         }
-        p.pixels[int(xoff) + int(y)*256] = color
-        //setPixel
+        p.screen[int(y)*256 + int(xoff)] = color
         p.fineX++
         p.fineX &= 7
         xoff++
@@ -386,27 +382,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
 
 func (p *PPU) drawFrame() {
     p.sl = -2
-    moreEvents := true
-    for moreEvents {
-        select {
-        case event := <-sdl.Events:
-            switch e := event.(type) {
-                case sdl.QuitEvent:
-                    sdl.Quit()
-                    os.Exit(0)
-                case sdl.KeyboardEvent:
-                    kevent := event.(sdl.KeyboardEvent)
-                    switch kevent.Keysym.Sym {
-                        case sdl.K_d:
-                            p.dumpNTs()
-                    }
-            }
-        default:
-            moreEvents = false
-        }
-    }
-    sdl.WM_SetCaption("gones","")
-    p.screen.Flip()
+    p.frames <- p.screen
 }
 
 func (p *PPU) run() {

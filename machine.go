@@ -24,13 +24,13 @@ type Machine struct {
     keys [8]byte
 }
 
-func MakeMachine(romname string) *Machine {
+func MakeMachine(romname string, frames chan []int) *Machine {
     m := &Machine{}
     m.rom = &ROM{}
     f, _ := os.Open(romname, 0, 0)
     m.rom.loadRom(f)
     m.cpu = makeCPU(m)
-    m.ppu = makePPU(m)
+    m.ppu = makePPU(m, frames)
     for i := 0; i < 0x800; i++ {
         m.mem[i] = 0xff
     }
@@ -94,6 +94,13 @@ func (m *Machine) setMem(addr word, val byte) {
             m.rom.prg_ram[addr-0x6000] = val
         default:
             m.rom.mapper.prgWrite(addr, val)
+    }
+}
+
+func (m *Machine) Debug(keysym uint32) {
+    switch keysym {
+        case sdl.K_d:
+            m.ppu.dumpNTs()
     }
 }
 
