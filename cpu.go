@@ -3,13 +3,13 @@ package gones
 import "fmt"
 
 const (
-    N byte = 1 << 7
-    V byte = 1 << 6
-    B byte = 1 << 4
-    D byte = 1 << 3
-    I byte = 1 << 2
-    Z byte = 1 << 1
-    C byte = 1 << 0
+    N   byte = 1 << 7
+    V   byte = 1 << 6
+    B   byte = 1 << 4
+    D   byte = 1 << 3
+    I   byte = 1 << 2
+    Z   byte = 1 << 1
+    C   byte = 1 << 0
 )
 
 type CPU struct {
@@ -22,7 +22,7 @@ type CPU struct {
 }
 
 func makeCPU(m *Machine) *CPU {
-    return &CPU{0,0,0,0,0x24,0,0,false,0,m}
+    return &CPU{0, 0, 0, 0, 0x24, 0, 0, false, 0, m}
 }
 
 func (c *CPU) regs() string {
@@ -45,30 +45,30 @@ func (c *CPU) setFlag(flag byte, val bool) {
 }
 
 func (c *CPU) getFlag(flag byte) bool {
-    return flag & c.p != 0
+    return flag&c.p != 0
 }
 
 func (c *CPU) setNZ(val byte) {
     c.setFlag(Z, val == 0)
-    c.setFlag(N, val & 0x80 != 0)
+    c.setFlag(N, val&0x80 != 0)
 }
 
 func (c *CPU) push2(val word) {
     c.s -= 2
     var ss word = 0x100
-    c.m.setMem(ss | word(c.s+1), byte(val & 0xff))
-    c.m.setMem(ss | word(c.s+2), byte(val >> 8))
+    c.m.setMem(ss|word(c.s+1), byte(val&0xff))
+    c.m.setMem(ss|word(c.s+2), byte(val>>8))
 }
 
 func (c *CPU) pop2() word {
     c.s += 2
-    var r word = wordFromBytes(c.m.getMem(word(c.s) | 0x100), c.m.getMem(word((c.s-1) & 0xff) | 0x100))
+    var r word = wordFromBytes(c.m.getMem(word(c.s)|0x100), c.m.getMem(word((c.s-1)&0xff)|0x100))
     return r
 }
 
 func (c *CPU) push(val byte) {
     c.s -= 1
-    c.m.setMem(word(c.s+1) | 0x100, val)
+    c.m.setMem(word(c.s+1)|0x100, val)
 }
 
 func (c *CPU) pop() byte {
@@ -86,7 +86,7 @@ func (c *CPU) nextWordArgs() (word, byte, byte) {
     c.pc++
     hi := c.m.getMem(c.pc)
     c.pc++
-    return wordFromBytes(hi,lo), hi, lo
+    return wordFromBytes(hi, lo), hi, lo
 }
 
 func (c *CPU) irq() {
@@ -108,7 +108,7 @@ func (c *CPU) nmi() {
 func (c *CPU) branch(cond bool, inst *Instruction) {
     if cond {
         inst.extra_cycles += 1
-        if inst.addr & 0xff00 != c.pc & 0xff00 {
+        if inst.addr&0xff00 != c.pc&0xff00 {
             inst.extra_cycles += 1
         }
         c.pc = inst.addr
@@ -125,28 +125,28 @@ func (c *CPU) compare(a byte, b byte) {
 
 func (c *CPU) runInstruction(inst *Instruction) int {
     var (
-    m byte = 0
-    a7 byte = 0
-    m7 byte = 0
-    r7 byte = 0
-    result word = 0
+        m      byte = 0
+        a7     byte = 0
+        m7     byte = 0
+        r7     byte = 0
+        result word = 0
     )
     switch inst.op.op {
     case NOP, DOP, TOP:
     case JMP:
         c.pc = inst.addr
     case JSR:
-        c.push2(c.pc-1)
+        c.push2(c.pc - 1)
         c.pc = inst.addr
     case RTS:
-        c.pc = c.pop2()+1
+        c.pc = c.pop2() + 1
     case RTI:
-        c.p = (c.pop() | (1<<5)) & (^B)
+        c.p = (c.pop() | (1 << 5)) & (^B)
         c.pc = c.pop2()
-		if c.getFlag(I) {
-			c.scheduledIrq = 0
-		} else if c.irqWaiting {
-			c.scheduledIrq = 1
+        if c.getFlag(I) {
+            c.scheduledIrq = 0
+        } else if c.irqWaiting {
+            c.scheduledIrq = 1
         }
     case BRK:
         c.pc += 1
@@ -170,9 +170,9 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.branch(c.getFlag(N), inst)
     case BIT:
         m = inst.operand
-        c.setFlag(N, m & (1 << 7) != 0)
-        c.setFlag(V, m & (1 << 6) != 0)
-        c.setFlag(Z, (m & c.a) == 0)
+        c.setFlag(N, m&(1<<7) != 0)
+        c.setFlag(V, m&(1<<6) != 0)
+        c.setFlag(Z, (m&c.a) == 0)
     case CMP:
         c.compare(c.a, inst.operand)
     case CPY:
@@ -213,7 +213,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.x = inst.operand
         c.setNZ(c.a)
     case SAX:
-        c.m.setMem(inst.addr, c.a & c.x)
+        c.m.setMem(inst.addr, c.a&c.x)
     case PHP:
         c.push(c.p | B)
     case PLP:
@@ -226,10 +226,10 @@ func (c *CPU) runInstruction(inst *Instruction) int {
     case AND:
         c.a &= inst.operand
         c.setNZ(c.a)
-	case AAC:
-		c.a &= inst.operand
-		c.setNZ(c.a)
-		c.setFlag(C, c.a & 0x80 != 0)
+    case AAC:
+        c.a &= inst.operand
+        c.setNZ(c.a)
+        c.setFlag(C, c.a&0x80 != 0)
     case ORA:
         c.a |= inst.operand
         c.setNZ(c.a)
@@ -240,7 +240,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         a7 = c.a & (1 << 7)
         m7 = inst.operand & (1 << 7)
         result = word(c.a) + word(inst.operand)
-        if(c.getFlag(C)) {
+        if c.getFlag(C) {
             result += 1
         }
         c.a = byte(result & 0xff)
@@ -252,7 +252,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         a7 = c.a & (1 << 7)
         m7 = inst.operand & (1 << 7)
         result = word(c.a) - word(inst.operand)
-        if(!c.getFlag(C)) {
+        if !c.getFlag(C) {
             result -= 1
         }
         c.a = byte(result & 0xff)
@@ -283,15 +283,15 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(inst.operand)
         c.m.setMem(inst.addr, inst.operand)
     case DCP:
-        c.m.setMem(inst.addr, (inst.operand -1) & 0xff)
+        c.m.setMem(inst.addr, (inst.operand-1)&0xff)
         c.compare(c.a, (inst.operand-1)&0xff)
     case ISB:
         inst.operand = (inst.operand + 1) & 0xff
         c.m.setMem(inst.addr, inst.operand)
-		a7 = c.a & (1 << 7)
+        a7 = c.a & (1 << 7)
         m7 = inst.operand & (1 << 7)
         result = word(c.a) - word(inst.operand)
-        if(!c.getFlag(C)) {
+        if !c.getFlag(C) {
             result -= 1
         }
         c.a = byte(result & 0xff)
@@ -300,37 +300,37 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         r7 = c.a & (1 << 7)
         c.setFlag(V, !((a7 == m7) || ((a7 != m7) && (r7 == a7))))
     case LSR_A:
-        c.setFlag(C, c.a & 1 != 0)
+        c.setFlag(C, c.a&1 != 0)
         c.a >>= 1
         c.setNZ(c.a)
     case LSR:
-        c.setFlag(C, inst.operand & 1 != 0)
+        c.setFlag(C, inst.operand&1 != 0)
         inst.operand >>= 1
         c.m.setMem(inst.addr, inst.operand)
         c.setNZ(inst.operand)
     case ASL_A:
-        c.setFlag(C, c.a & (1 << 7) != 0)
+        c.setFlag(C, c.a&(1<<7) != 0)
         c.a <<= 1
         c.setNZ(c.a)
     case ASL:
-        c.setFlag(C, inst.operand & (1 << 7) != 0)
+        c.setFlag(C, inst.operand&(1<<7) != 0)
         inst.operand <<= 1
         c.m.setMem(inst.addr, inst.operand)
         c.setNZ(inst.operand)
-	case ASR:
-		c.a &= inst.operand
-		c.setFlag(C, c.a & 1 != 0)
-		c.a >>= 1
-		c.setNZ(c.a)
-	case ARR:
-		c.a &= inst.operand
-		c.a >>= 1
-		if c.getFlag(C) {
-			c.a |= 0x80
+    case ASR:
+        c.a &= inst.operand
+        c.setFlag(C, c.a&1 != 0)
+        c.a >>= 1
+        c.setNZ(c.a)
+    case ARR:
+        c.a &= inst.operand
+        c.a >>= 1
+        if c.getFlag(C) {
+            c.a |= 0x80
         }
-		c.setFlag(C, c.a & (1<<6) != 0)
-		c.setFlag(V, ((c.a & (1<<5))<<1)  ^ (c.a & (1<<6)) != 0)
-		c.setNZ(c.a)
+        c.setFlag(C, c.a&(1<<6) != 0)
+        c.setFlag(V, ((c.a&(1<<5))<<1)^(c.a&(1<<6)) != 0)
+        c.setNZ(c.a)
     case TSX:
         c.x = c.s
         c.setNZ(c.x)
@@ -342,28 +342,28 @@ func (c *CPU) runInstruction(inst *Instruction) int {
     case TXA:
         c.a = c.x
         c.setNZ(c.a)
-	case ATX:
-		c.a |= 0xff
-		c.a &= inst.operand
-		c.x = c.a
-		c.setNZ(c.x)
-	case AXS:
-		c.x = c.a & c.x
-		result = word(c.x) - word(inst.operand)
-		c.setFlag(C, result < 0x100)
-		c.x = byte(result & 0xff)
-		c.setNZ(c.x)
-	case SYA:
-		m = c.y & (inst.args[1] + 1)
-		if inst.extra_cycles == 0 {
-			c.m.setMem(inst.addr, m)
+    case ATX:
+        c.a |= 0xff
+        c.a &= inst.operand
+        c.x = c.a
+        c.setNZ(c.x)
+    case AXS:
+        c.x = c.a & c.x
+        result = word(c.x) - word(inst.operand)
+        c.setFlag(C, result < 0x100)
+        c.x = byte(result & 0xff)
+        c.setNZ(c.x)
+    case SYA:
+        m = c.y & (inst.args[1] + 1)
+        if inst.extra_cycles == 0 {
+            c.m.setMem(inst.addr, m)
         } else {
             inst.extra_cycles = 0
         }
-	case SXA:
-		m = c.x & (inst.args[1] + 1)
-		if inst.extra_cycles == 0 {
-			c.m.setMem(inst.addr, m)
+    case SXA:
+        m = c.x & (inst.args[1] + 1)
+        if inst.extra_cycles == 0 {
+            c.m.setMem(inst.addr, m)
         } else {
             inst.extra_cycles = 0
         }
@@ -418,13 +418,13 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.a &= inst.operand
         c.setNZ(c.a)
     case SLO:
-        c.setFlag(C, inst.operand & (1 << 7) != 0)
+        c.setFlag(C, inst.operand&(1<<7) != 0)
         inst.operand <<= 1
         c.m.setMem(inst.addr, inst.operand)
         c.a |= inst.operand
         c.setNZ(c.a)
-	case SRE:
-		c.setFlag(C, inst.operand & 1 != 0)
+    case SRE:
+        c.setFlag(C, inst.operand&1 != 0)
         inst.operand >>= 1
         c.m.setMem(inst.addr, inst.operand)
         c.a ^= inst.operand
@@ -436,10 +436,10 @@ func (c *CPU) runInstruction(inst *Instruction) int {
             inst.operand |= 1 << 7
         }
         c.m.setMem(inst.addr, inst.operand)
-		a7 = c.a & (1 << 7)
+        a7 = c.a & (1 << 7)
         m7 = inst.operand & (1 << 7)
         result = word(c.a) + word(inst.operand)
-        if m != 0  {
+        if m != 0 {
             result += 1
         }
         c.a = byte(result & 0xff)

@@ -88,16 +88,17 @@ const (
     SXA
     LAR
 )
-var opnames = []string{ "BRK", "ORA", "ASL", "SLO", "PHP", "ASL", "NOP", "BPL", "CLC",
-					"JSR", "AND", "RLA", "TSX", "BIT", "ROL", "PLP", "ROL", "BMI",
-					"SEC", "RTI", "EOR", "SRE", "PHA", "LSR", "PLA", "LSR", "JMP",
-					"BVC", "CLI", "RTS", "ADC", "ROR", "BVS", "RRA", "SEI", "ROR",
-					"STA", "SAX", "STY", "STX", "DEY", "DEX", "TXA", "BCC", "TYA",
-					"TXS", "LDY", "LDA", "LDX", "LAX", "TAY", "TAX", "BCS", "CLV",
-					"CPY", "CPX", "CMP", "DEC", "DCP", "INY", "INX", "BNE", "CLD",
-					"SBC", "ISB", "INC", "BEQ", "SED", "DOP", "AAC", "ASR", "ARR",
-					"ATX", "AXS", "TOP", "SYA", "KIL", "XAA", "AXA", "XAS", "SXA",
-					"LAR" };
+
+var opnames = []string{"BRK", "ORA", "ASL", "SLO", "PHP", "ASL", "NOP", "BPL", "CLC",
+    "JSR", "AND", "RLA", "TSX", "BIT", "ROL", "PLP", "ROL", "BMI",
+    "SEC", "RTI", "EOR", "SRE", "PHA", "LSR", "PLA", "LSR", "JMP",
+    "BVC", "CLI", "RTS", "ADC", "ROR", "BVS", "RRA", "SEI", "ROR",
+    "STA", "SAX", "STY", "STX", "DEY", "DEX", "TXA", "BCC", "TYA",
+    "TXS", "LDY", "LDA", "LDX", "LAX", "TAY", "TAX", "BCS", "CLV",
+    "CPY", "CPX", "CMP", "DEC", "DCP", "INY", "INX", "BNE", "CLD",
+    "SBC", "ISB", "INC", "BEQ", "SED", "DOP", "AAC", "ASR", "ARR",
+    "ATX", "AXS", "TOP", "SYA", "KIL", "XAA", "AXA", "XAS", "SXA",
+    "LAR"}
 
 
 type address_mode int
@@ -414,24 +415,24 @@ func (o Opcode) String() string {
 func (i Instruction) String() string {
     args := ""
     switch i.op.addr_mode {
-        case IMM:
-            args = fmt.Sprintf("#$%02X                       ", i.operand)
-        case REL:
-            args = fmt.Sprintf("$%04X                      ", i.addr)
-        case ZP, ZP_ST:
-            args = fmt.Sprintf("$%02X                        ", i.addr)
-        case ABS, ABS_ST:
-            args = fmt.Sprintf("$%04X                      ", i.addr)
-        case A:
-            args = "A                          "
-        default:
-            args = "                           "
+    case IMM:
+        args = fmt.Sprintf("#$%02X                       ", i.operand)
+    case REL:
+        args = fmt.Sprintf("$%04X                      ", i.addr)
+    case ZP, ZP_ST:
+        args = fmt.Sprintf("$%02X                        ", i.addr)
+    case ABS, ABS_ST:
+        args = fmt.Sprintf("$%04X                      ", i.addr)
+    case A:
+        args = "A                          "
+    default:
+        args = "                           "
     }
     c := ' '
     if i.op.illegal {
         c = '*'
     }
-    switch (i.arglen) {
+    switch i.arglen {
     case 0:
         return fmt.Sprintf("%02X       %c%v %s", i.opcode, c, i.op, args)
     case 1:
@@ -514,7 +515,7 @@ func (c *CPU) nextInstruction() Instruction {
     case IDIX:
         args[0] = c.nextByte()
         addr = wordFromBytes(c.m.getMem(word(args[0]+1&0xff)),
-                    c.m.getMem(word(args[0])))
+            c.m.getMem(word(args[0])))
         addr += word(c.y)
         addr &= 0xffff
         if !op.store {

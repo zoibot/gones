@@ -11,24 +11,24 @@ import (
 
 func sdlInput() chan []byte {
     c := make(chan []byte)
-    go func () {
-    for {
-        c <- []byte(sdl.GetKeyState())
-    }
+    go func() {
+        for {
+            c <- []byte(sdl.GetKeyState())
+        }
     }()
     return c
 }
 
 func readStdin() chan byte {
     c := make(chan byte)
-    go func () {
-    b := make([]byte, 1)
-    for {
-        n, _ := os.Stdin.Read(b)
-        if n != 0 {
-            c <- b[0]
+    go func() {
+        b := make([]byte, 1)
+        for {
+            n, _ := os.Stdin.Read(b)
+            if n != 0 {
+                c <- b[0]
+            }
         }
-    }
     }()
     return c
 }
@@ -55,7 +55,7 @@ func run() {
     var screen *sdl.Surface
     sdl.Init(sdl.INIT_VIDEO)
     screen = sdl.SetVideoMode(256, 240, 32, 0)
-    sdl.WM_SetCaption("gones","")
+    sdl.WM_SetCaption("gones", "")
     //set up channels for communicating with machine
     frames := make(chan []int)
 
@@ -73,7 +73,7 @@ func run() {
         select {
         case frame := <-frames:
             //new frame
-            copy((*[256*240]int)(screen.Pixels)[:], frame)
+            copy((*[256 * 240]int)(screen.Pixels)[:], frame)
             if video {
                 gones.SaveImage(fmt.Sprintf("video/%s_%05d.png", romname, num), frame)
                 num++
@@ -82,8 +82,8 @@ func run() {
         case c := <-input:
             //char from stdin
             switch c {
-                case 's':
-                    gones.SaveImage("ss.png", (*[256*240]int)(screen.Pixels)[:])
+            case 's':
+                gones.SaveImage("ss.png", (*[256 * 240]int)(screen.Pixels)[:])
             }
         case event := <-sdl.Events:
             switch e := event.(type) {
