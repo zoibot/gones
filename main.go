@@ -9,11 +9,25 @@ import (
     "flag"
 )
 
+var keymap = []int{sdl.K_z,
+    sdl.K_x,
+    sdl.K_s,
+    sdl.K_RETURN,
+    sdl.K_UP,
+    sdl.K_DOWN,
+    sdl.K_LEFT,
+    sdl.K_RIGHT}
+
 func sdlInput() chan []byte {
     c := make(chan []byte)
+    buttons := make([]byte, 8)
     go func() {
         for {
-            c <- []byte(sdl.GetKeyState())
+            keys := sdl.GetKeyState()
+            for i := 0; i < 8; i++ {
+                buttons[i] = keys[keymap[i]]
+            }
+            c <- buttons
         }
     }()
     return c

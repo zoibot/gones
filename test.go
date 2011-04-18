@@ -9,6 +9,16 @@ import (
     "./gones"
 )
 
+var buttonmap = map[byte] byte{
+    'A' : 0,
+    'B' : 1,
+    'S' : 2,
+    'T' : 3,
+    'U' : 4,
+    'D' : 5,
+    'L' : 6,
+    'R' : 7 }
+
 
 func test(tfile string) {
     f, e := os.Open(tfile)
@@ -22,7 +32,7 @@ func test(tfile string) {
     lines := bytes.Split(buf, []byte{'\n'}, -1)
     romname := lines[0]
     frames := make(chan []int)
-    currentInput := make([]byte, 512)
+    currentInput := make([]byte, 8)
     m := gones.MakeMachine(string(romname), frames,
         func() chan []byte {
             c := make(chan []byte)
@@ -58,7 +68,7 @@ func test(tfile string) {
                 fmt.Printf("Pass!\n")
             }
         case "press":
-            key, _ := strconv.Atoi(string(fs[1]))
+            key := buttonmap[fs[1][0]]
             //fmt.Printf("pressing key %v\n", key)
             currentInput[key] = 1
             <-frames

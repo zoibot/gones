@@ -6,15 +6,6 @@ import (
     "fmt"
 )
 
-var keymap = []int{sdl.K_z,
-    sdl.K_x,
-    sdl.K_s,
-    sdl.K_RETURN,
-    sdl.K_UP,
-    sdl.K_DOWN,
-    sdl.K_LEFT,
-    sdl.K_RIGHT}
-
 type Machine struct {
     cpu              *CPU
     ppu              *PPU
@@ -22,7 +13,7 @@ type Machine struct {
     mem              [0x800]byte
     input            chan []byte
     read_input_state byte
-    keys             [8]byte
+    keys             []byte
 }
 
 func MakeMachine(romname string, frames chan []int, input chan []byte) *Machine {
@@ -79,10 +70,7 @@ func (m *Machine) setMem(addr word, val byte) {
         switch addr {
         case 0x4016:
             if val&1 != 0 {
-                keys := <-m.input
-                for i := 0; i < 8; i++ {
-                    m.keys[i] = keys[keymap[i]]
-                }
+                m.keys = <-m.input
                 m.read_input_state = 0
             }
         case 0x4014:
