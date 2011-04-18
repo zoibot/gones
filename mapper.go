@@ -29,7 +29,7 @@ type NROM struct {}
 
 func (n *NROM) load(rom *ROM) {
     rom.prg_rom[0] = rom.prg_banks
-    rom.prg_rom[1] = rom.prg_banks[0x4000 * word(rom.prg_size-1):]
+    rom.prg_rom[1] = rom.prg_banks[0x4000 * int(rom.prg_size-1):]
     rom.chr_rom[0] = rom.chr_banks
     rom.chr_rom[1] = rom.chr_banks[0x1000:]
 }
@@ -45,7 +45,7 @@ type MMC1 struct {
 
 func (m *MMC1) load(rom *ROM) {
     rom.prg_rom[0] = rom.prg_banks
-    rom.prg_rom[1] = rom.prg_banks[0x4000 * word(rom.prg_size-1):]
+    rom.prg_rom[1] = rom.prg_banks[0x4000 * int(rom.prg_size-1):]
     rom.chr_rom[0] = rom.chr_banks
     rom.chr_rom[1] = rom.chr_banks[0x1000:]
     m.control = 0xc
