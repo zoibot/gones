@@ -1,0 +1,10 @@
+nestest.nes
+wait 5
+press 13
+wait 20
+test_image 3219f02da7169e6320a237da2b14cbed
+press 115
+wait 2
+press 13
+wait 20
+test_image ae2c7f230e82a2a6c50c06b0c2e6c46f
