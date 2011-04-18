@@ -11,7 +11,7 @@ import (
 
 
 func test(tfile string) {
-    f, e := os.Open(tfile, os.O_RDONLY, 0)
+    f, e := os.Open(tfile)
     if f == nil {
         fmt.Printf("Error opening test file: %v\n", e)
     }

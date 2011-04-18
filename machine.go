@@ -28,7 +28,7 @@ type Machine struct {
 func MakeMachine(romname string, frames chan []int, input chan []byte) *Machine {
     m := &Machine{input: input}
     m.rom = &ROM{}
-    f, err := os.Open(romname, 0, 0)
+    f, err := os.OpenFile(romname, 0, 0)
     if f == nil {
         fmt.Printf("Couldn't open rom!\n%v\n", err)
     }

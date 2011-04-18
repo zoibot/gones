@@ -105,18 +105,18 @@ func (p *PPU) setNTMirroring(t int) {
         p.setMirroring(0x2800, 0x2400, 0x400)
         p.setMirroring(0x2c00, 0x2400, 0x400)
         /*
-        	case SINGLE_THIRD:
-        		p.setMirroring(0x2000, 0x2800, 0x400);
-        		p.setMirroring(0x2400, 0x2800, 0x400);
-        		p.setMirroring(0x2800, 0x2800, 0x400);
-                p.setMirroring(0x2c00, 0x2800, 0x400);
-        		break;
-        	case SINGLE_FOURTH:
-        		p.setMirroring(0x2000, 0x2c00, 0x400);
-        		p.setMirroring(0x2400, 0x2c00, 0x400);
-        		p.setMirroring(0x2800, 0x2c00, 0x400);
-                p.setMirroring(0x2c00, 0x2c00, 0x400);
-        		break;
+           	case SINGLE_THIRD:
+           		p.setMirroring(0x2000, 0x2800, 0x400);
+           		p.setMirroring(0x2400, 0x2800, 0x400);
+           		p.setMirroring(0x2800, 0x2800, 0x400);
+                   p.setMirroring(0x2c00, 0x2800, 0x400);
+           		break;
+           	case SINGLE_FOURTH:
+           		p.setMirroring(0x2000, 0x2c00, 0x400);
+           		p.setMirroring(0x2400, 0x2c00, 0x400);
+           		p.setMirroring(0x2800, 0x2c00, 0x400);
+                   p.setMirroring(0x2c00, 0x2c00, 0x400);
+           		break;
         */
     default:
         break
@@ -494,7 +494,7 @@ func (p *PPU) dumpNTs() {
             y = 240
         }
     }
-    f, e := os.Open("nt.png", os.O_WRONLY|os.O_CREAT, 0666)
+    f, e := os.Create("nt.png")
     if f == nil {
         fmt.Printf("error opening file. %v\n", e.String())
     }

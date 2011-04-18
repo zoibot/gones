@@ -47,7 +47,7 @@ func HashImage(frame []int) []byte {
 
 func SaveImage(fname string, frame []int) {
     img := intsToImage(frame)
-    f, err := os.Open(fname, os.O_CREAT|os.O_WRONLY, 0666)
+    f, err := os.Create(fname)
     if f == nil {
         fmt.Printf("error opening file. %v\n", err.String())
     }
