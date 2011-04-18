@@ -20,14 +20,18 @@ type Machine struct {
     ppu *PPU
     rom *ROM
     mem [0x800]byte
+    input chan []byte
     read_input_state byte
     keys [8]byte
 }
 
-func MakeMachine(romname string, frames chan []int) *Machine {
-    m := &Machine{}
+func MakeMachine(romname string, frames chan []int, input chan []byte) *Machine {
+    m := &Machine{input: input}
     m.rom = &ROM{}
-    f, _ := os.Open(romname, 0, 0)
+    f, err := os.Open(romname, 0, 0)
+    if f == nil {
+        fmt.Printf("Couldn't open rom!\n%v\n", err)
+    }
     m.rom.loadRom(f)
     m.cpu = makeCPU(m)
     m.ppu = makePPU(m, frames)
@@ -75,7 +79,7 @@ func (m *Machine) setMem(addr word, val byte) {
             switch addr {
                 case 0x4016:
                     if val & 1 != 0 {
-                        keys := []uint8(sdl.GetKeyState())
+                        keys := <-m.input
                         for i := 0; i < 8; i++ {
                             m.keys[i] = keys[keymap[i]]
                         }

@@ -1,7 +1,10 @@
 package gones
 
 import "image"
-import "⚛sdl"
+import "image/png"
+import "crypto/md5"
+import "fmt"
+import "os"
 
 type word uint16
 
@@ -23,6 +26,32 @@ func intToColor(col int) image.RGBAColor {
     g := byte((col & 0x00ff00) >> 8)
     b := byte((col & 0x0000ff))
     return image.RGBAColor{r,g,b,0xff}
+}
+
+func intsToImage(frame []int) image.Image {
+    img := image.NewRGBA(256, 240)
+    for y := 0; y < 240; y++ {
+        for x := 0; x < 256; x++ {
+            img.Set(x, y, intToColor(frame[y*256 + x]))
+        }
+    }
+    return img
+}
+
+func HashImage(frame []int) []byte {
+    img := intsToImage(frame)
+    h := md5.New()
+    png.Encode(h, img)
+    return h.Sum()
+}
+
+func SaveImage(fname string, frame []int) {
+    img := intsToImage(frame)
+    f, err := os.Open(fname, os.O_CREAT | os.O_WRONLY, 0666)
+    if f == nil {
+        fmt.Printf("error opening file. %v\n", err.String())
+    }
+    png.Encode(f, img)
 }
 
 var colors = []int{
