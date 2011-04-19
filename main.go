@@ -49,22 +49,26 @@ func readStdin() chan byte {
 
 func main() {
     //set up command line options
-    var inputFile, recordKeys, testFile string
+    var inputFile, recordKeys, testFile, testManyFile string
     flag.StringVar(&inputFile, "input", "", "Specify an input file to use instead of keypresses")
     flag.StringVar(&testFile, "test", "", "Specify a test file to run")
+    flag.StringVar(&testManyFile, "testm", "", "Specify a file containing a list of tests to run")
     flag.StringVar(&recordKeys, "record", "", "Record keypresses for later playback")
-    var suppressVideo bool
+    var suppressVideo, debug bool
     flag.BoolVar(&suppressVideo, "novideo", false, "Disable video output for running in testing mode")
+    flag.BoolVar(&debug, "d", false, "Turn on instruction dumping")
     flag.Parse()
 
     if testFile != "" {
         test(testFile)
+    } else if testManyFile != "" {
+        testMany(testManyFile)
     } else {
-        run()
+        run(debug)
     }
 }
 
-func run() {
+func run(debug bool) {
     //initialize video if we need to 
     var screen *sdl.Surface
     sdl.Init(sdl.INIT_VIDEO)
@@ -80,7 +84,7 @@ func run() {
 
     video := false
     //run machine
-    go m.Run()
+    go m.Run(debug)
     //start reading std input
     input := readStdin()
     for {
@@ -102,6 +106,7 @@ func run() {
         case event := <-sdl.Events:
             switch e := event.(type) {
             case sdl.QuitEvent:
+                fmt.Printf("Quitting\n")
                 sdl.Quit()
                 os.Exit(0)
             case sdl.KeyboardEvent:

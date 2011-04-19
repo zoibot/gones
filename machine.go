@@ -26,6 +26,7 @@ func MakeMachine(romname string, frames chan []int, input chan []byte) *Machine 
     m.rom.loadRom(f)
     m.cpu = makeCPU(m)
     m.ppu = makePPU(m, frames)
+    m.keys = make([]byte, 8)
     for i := 0; i < 0x800; i++ {
         m.mem[i] = 0xff
     }
@@ -96,11 +97,10 @@ func (m *Machine) Debug(keysym uint32) {
     }
 }
 
-func (m *Machine) Run() {
+func (m *Machine) Run(debug bool) {
     m.cpu.reset()
     var inst = Instruction{}
     pc := word(0)
-    debug := false
     for true {
         pc = m.cpu.pc
         inst = m.cpu.nextInstruction()

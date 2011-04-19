@@ -19,11 +19,27 @@ var buttonmap = map[byte] byte{
     'L' : 6,
     'R' : 7 }
 
+func testMany(fname string) {
+    f, e := os.Open(fname)
+    if f == nil {
+        fmt.Printf("error opening test file: %v\n", e)
+        os.Exit(1)
+    }
+    finfo, _ := f.Stat()
+    sz := finfo.Size
+    buf := make([]byte, sz)
+    f.Read(buf)
+    lines := bytes.Split(buf, []byte{'\n'}, -1)
+    for namei := range lines {
+        test(string(lines[namei]))
+    }
+}
 
 func test(tfile string) {
     f, e := os.Open(tfile)
     if f == nil {
         fmt.Printf("Error opening test file: %v\n", e)
+        os.Exit(1)
     }
     finfo, _ := f.Stat()
     sz := finfo.Size
@@ -43,7 +59,7 @@ func test(tfile string) {
             }()
             return c
         }())
-    go m.Run()
+    go m.Run(false)
     for line := range lines[1:] {
         fs := bytes.Fields(lines[line])
         switch string(fs[0]) {
@@ -62,11 +78,18 @@ func test(tfile string) {
             hash := big.NewInt(0)
             hash.SetBytes(gones.HashImage(frame))
             if bytes.Compare(fs[1], []byte(fmt.Sprintf("%x", hash))) != 0 {
-                fmt.Printf("Fail %x\n", hash)
+                fmt.Printf("%s %s: fail %x\n", romname, string(fs[2]), hash)
                 gones.SaveImage("test/test.png", frame)
             } else {
-                fmt.Printf("Pass!\n")
+                fmt.Printf("%s %s: pass\n", romname, string(fs[2]))
             }
+        /*case "blargg_string":
+            str, status, code = gones.GetBlarggOutput()
+            if code != 1 {
+                fmt.Printf("fail")
+            } else {
+                fmt.Printf("pass")
+            }*/
         case "press":
             key := buttonmap[fs[1][0]]
             //fmt.Printf("pressing key %v\n", key)

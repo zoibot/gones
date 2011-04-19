@@ -1,3 +1,6 @@
 .*.sw.
 .*.6
 .*.out
+.*.nes
+.*\.NES
+gones

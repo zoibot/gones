@@ -1,0 +1,29 @@
+NEStress.NES
+wait 10 
+press T
+wait 15 
+test_image 27053a7a901816bd710e1396493fa2c8 PPU1
+press T
+wait 12
+test_image a751dbfe922b1c1018fe197cd2ceec7 PPU2
+press T
+wait 10
+test_image 1754f742e4b21328cc2266131ad40c29 PPU3
+press T
+wait 5
+press S
+wait 2
+press S
+wait 2
+press T
+wait 20
+test_image 215e4422b1ef8cd7a58dfc419c4d3ffb CPU1
+press T
+wait 20
+test_image 92d17a897d4cb1b6081d0530ec3706b8 CPU2
+press T
+wait 20
+test_image 702bed64d4a9fd3b12749f72d657185f CPU3
+press T
+wait 20
+test_image 99399f6e05f3f3131d2d3364304c67e CPU4

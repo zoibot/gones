@@ -2,9 +2,9 @@ nestest.nes
 wait 5
 press T
 wait 20
-test_image 3219f02da7169e6320a237da2b14cbed
+test_image 3219f02da7169e6320a237da2b14cbed official
 press S
 wait 2
 press T
 wait 20
-test_image ae2c7f230e82a2a6c50c06b0c2e6c46f
+test_image ae2c7f230e82a2a6c50c06b0c2e6c46f unofficial
