@@ -56,7 +56,8 @@ func (m *Machine) getMem(addr word) byte {
     case addr < 0x8000:
         return m.rom.prg_ram[addr-0x6000]
     default:
-        return m.rom.prg_rom[addr&0x4000>>14][addr&0x3fff]
+        //TODO the literal 14 here doesn't work anymore!!!
+        return m.rom.prg_rom[addr&m.rom.prg_bank_size>>14][addr&(m.rom.prg_bank_size-1)]
     }
     return 0 //wtf go?
 }

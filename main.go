@@ -89,21 +89,8 @@ func run(debug bool) {
     input := readStdin()
     for {
         select {
-        case frame := <-frames:
-            //new frame
-            copy((*[256 * 240]int)(screen.Pixels)[:], frame)
-            if video {
-                gones.SaveImage(fmt.Sprintf("video/%s_%05d.png", romname, num), frame)
-                num++
-            }
-            screen.Flip()
-        case c := <-input:
-            //char from stdin
-            switch c {
-            case 's':
-                gones.SaveImage("ss.png", (*[256 * 240]int)(screen.Pixels)[:])
-            }
         case event := <-sdl.Events:
+            fmt.Println("event")
             switch e := event.(type) {
             case sdl.QuitEvent:
                 fmt.Printf("Quitting\n")
@@ -122,6 +109,21 @@ func run(debug bool) {
                 default:
                     m.Debug(kevent.Keysym.Sym)
                 }
+            }
+        case frame := <-frames:
+            //new frame
+            copy((*[256 * 240]int)(screen.Pixels)[:], frame)
+            if video {
+                gones.SaveImage(fmt.Sprintf("video/%s_%05d.png", romname, num), frame)
+                num++
+            }
+            sdl.WM_SetCaption("gones fps", "")
+            screen.Flip()
+        case c := <-input:
+            //char from stdin
+            switch c {
+            case 's':
+                gones.SaveImage("ss.png", (*[256 * 240]int)(screen.Pixels)[:])
             }
         }
     }

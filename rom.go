@@ -9,12 +9,14 @@ type ROM struct {
     fname          string
     chr_size       byte
     chr_ram        bool
-    chr_rom        [2][]byte
+    chr_rom        [8][]byte
     chr_banks      []byte
+    chr_bank_size  word
     prg_ram        []byte
     prg_size       byte
     prg_rom        [2][]byte
     prg_banks      []byte
+    prg_bank_size  word
     flags6, flags7 byte
     mapper_num     byte
     mapper         Mapper
@@ -35,8 +37,10 @@ func (r *ROM) loadRom(f *os.File) {
     r.flags6 = header[6]
     r.flags7 = header[7]
     if r.flags6&1 != 0 {
+        fmt.Println("Vertical Mirroring")
         r.mirror = VERTICAL
     } else {
+        fmt.Println("Horizontal Mirroring")
         r.mirror = HORIZONTAL
     }
     r.mapper_num = (r.flags7 & 0xf0) | ((r.flags6 & 0xf0) >> 4)

@@ -63,6 +63,7 @@ func makePPU(m *Machine, frames chan []int) *PPU {
         p.objMem[i] = 0xff
     }
     p.setMirroring(0x3000, 0x2000, 0xf00)
+    p.currentMirroring = -1
     p.setNTMirroring(m.rom.mirror)
     p.cycles = make(chan int)
     return &p
@@ -219,7 +220,7 @@ func (p *PPU) getMem(addr word) byte {
 func (p *PPU) setMem(addr word, val byte) {
     switch true {
     case addr < 0x2000:
-        p.mach.rom.chr_rom[(addr&0x1000)>>12][addr&0xfff] = val
+        p.mach.rom.chr_rom[(addr&p.mach.rom.chr_bank_size)>>12][addr&(p.mach.rom.chr_bank_size-1)] = val
     case addr < 0x3f00:
         p.mem[p.mirrorTable[addr]] = val
     default:
@@ -233,7 +234,7 @@ func (p *PPU) setMem(addr word, val byte) {
 func (p *PPU) newScanline() {
     fineY := (p.vaddr & 0x7000) >> 12
     if fineY == 7 {
-        if p.vaddr&0x3ff >= 0x3c0 {
+        if p.vaddr&0x3ff >= 0x3e0 {
             p.vaddr &= ^word(0x3ff)
         } else {
             p.vaddr += 0x20

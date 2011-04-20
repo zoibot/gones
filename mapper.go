@@ -1,6 +1,7 @@
 package gones
 
 import "fmt"
+import "os"
 
 type Mapper interface {
     load(rom *ROM)
@@ -19,6 +20,11 @@ func loadMapper(num byte, rom *ROM) Mapper {
         m = new(UNROM)
     case 3:
         m = new(CNROM)
+    case 4:
+        m = new(MMC3)
+    default:
+        fmt.Printf("Unsupported Mapper: %d\n", num)
+        os.Exit(1)
     }
     m.load(rom)
     fmt.Printf("Mapper: %d %s\n", num, m.name())
@@ -32,6 +38,8 @@ func (n *NROM) load(rom *ROM) {
     rom.prg_rom[1] = rom.prg_banks[0x4000*int(rom.prg_size-1):]
     rom.chr_rom[0] = rom.chr_banks
     rom.chr_rom[1] = rom.chr_banks[0x1000:]
+    rom.chr_bank_size = 0x1000
+    rom.prg_bank_size = 0x4000
 }
 
 func (n *NROM) prgWrite(addr word, val byte) {}
@@ -48,6 +56,8 @@ func (m *MMC1) load(rom *ROM) {
     rom.prg_rom[1] = rom.prg_banks[0x4000*int(rom.prg_size-1):]
     rom.chr_rom[0] = rom.chr_banks
     rom.chr_rom[1] = rom.chr_banks[0x1000:]
+    rom.chr_bank_size = 0x1000
+    rom.prg_bank_size = 0x4000
     m.control = 0xc
     m.shift = 0
     m.loadr = 0
@@ -129,6 +139,8 @@ func (u *UNROM) load(rom *ROM) {
     rom.prg_rom[1] = rom.prg_banks[0x4000*int(rom.prg_size-1):]
     rom.chr_rom[0] = rom.chr_banks
     rom.chr_rom[1] = rom.chr_banks[0x1000:]
+    rom.chr_bank_size = 0x1000
+    rom.prg_bank_size = 0x4000
 }
 
 func (u *UNROM) prgWrite(addr word, val byte) {
@@ -150,6 +162,8 @@ func (c *CNROM) load(rom *ROM) {
     rom.prg_rom[1] = rom.prg_banks[0x4000*int(rom.prg_size-1):]
     rom.chr_rom[0] = rom.chr_banks
     rom.chr_rom[1] = rom.chr_banks[0x1000:]
+    rom.chr_bank_size = 0x1000
+    rom.prg_bank_size = 0x4000
 }
 
 func (c *CNROM) prgWrite(addr word, val byte) {
@@ -160,4 +174,52 @@ func (c *CNROM) prgWrite(addr word, val byte) {
 
 func (c *CNROM) name() string {
     return "CNROM"
+}
+
+type MMC3 struct {
+    rom *ROM
+    bankSelect byte
+    currentBanks [8]byte
+    bankConfiguration byte
+}
+
+func (c *MMC3) load(rom *ROM) {
+    c.rom = rom
+    rom.prg_rom[0] = rom.prg_banks
+    rom.prg_rom[1] = rom.prg_banks[0x4000*int(rom.prg_size-1):]
+    rom.chr_rom[0] = rom.chr_banks
+    rom.chr_rom[1] = rom.chr_banks[0x1000:]
+    rom.chr_bank_size = 0x400
+    rom.prg_bank_size = 0x2000
+}
+
+func (c *MMC3) prgWrite(addr word, val byte) {
+    switch addr & 1 {
+    case 0:
+        switch true {
+            case addr < 0xa000:
+                //bank select
+            case addr < 0xc000:
+                //mirroring
+            case addr < 0xe000:
+                //irq latch
+            default:
+                //irq disable
+        }
+    case 1:
+        switch true {
+            case addr < 0xa000:
+                //set bank
+            case addr < 0xc000:
+                //prg ram
+            case addr < 0xe000:
+                //irq reload
+            default:
+                //irq enable
+        }
+    }
+}
+
+func (c *MMC3) name() string {
+    return "MMC3"
 }
