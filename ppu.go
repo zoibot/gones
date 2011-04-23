@@ -270,7 +270,6 @@ func (p *PPU) newScanline() {
 
 func (p *PPU) doVblank(renderingEnabled bool) {
     cycles := int(p.mach.cpu.cycleCount*3 - p.cycleCount)
-    p.pstat &= ^byte(1 << 7)
     if 341-p.cyc > cycles {
         p.cyc += cycles
         p.cycleCount += uint64(cycles)
@@ -278,6 +277,7 @@ func (p *PPU) doVblank(renderingEnabled bool) {
         p.cycleCount += uint64(341 - p.cyc)
         p.cyc = 0
         p.sl += 1
+    p.pstat &= ^byte(1 << 7)
         if renderingEnabled {
             p.vaddr = p.taddr
             p.fineX = p.xoff

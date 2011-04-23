@@ -87,6 +87,10 @@ func (c *CPU) pop() byte {
     return c.getMem(word(c.s) | 0x100)
 }
 
+func (c *CPU) readStack() byte {
+    return c.getMem(word(c.s) | 0x100)
+}
+
 func (c *CPU) nextByte() byte {
     c.pc++
     return c.getMem(c.pc - 1)
@@ -104,16 +108,16 @@ func (c *CPU) irq() {
     c.push2(c.pc)
     c.push(c.p)
     c.setFlag(I, true)
-    c.pc = wordFromBytes(c.getMem(0xffff), c.m.getMem(0xfffe))
-    c.cycleCount += 7
+    c.pc = wordFromBytes(c.getMem(0xffff), c.getMem(0xfffe))
+    //c.cycleCount += 7
 }
 
 func (c *CPU) nmi() {
     c.push2(c.pc)
     c.push(c.p)
     c.setFlag(I, true)
-    c.pc = wordFromBytes(c.getMem(0xfffb), c.m.getMem(0xfffa))
-    c.cycleCount += 7
+    c.pc = wordFromBytes(c.getMem(0xfffb), c.getMem(0xfffa))
+    //c.cycleCount += 7
 }
 
 func (c *CPU) branch(cond bool, inst *Instruction) {
@@ -152,8 +156,11 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.push2(c.pc - 1)
         c.pc = inst.addr
     case RTS:
+        c.readStack()
         c.pc = c.pop2() + 1
+        c.getMem(c.pc)
     case RTI:
+        c.readStack()
         c.p = (c.pop() | (1 << 5)) & (^B)
         c.pc = c.pop2()
         if c.getFlag(I) {
@@ -230,8 +237,10 @@ func (c *CPU) runInstruction(inst *Instruction) int {
     case PHP:
         c.push(c.p | B)
     case PLP:
+        c.readStack()
         c.p = (c.pop() | (1 << 5)) & (^B)
     case PLA:
+        c.readStack()
         c.a = c.pop()
         c.setNZ(c.a)
     case PHA:
@@ -292,14 +301,17 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(inst.operand)
         c.setMem(inst.addr, inst.operand)
     case DEC:
+        c.setMem(inst.addr, inst.operand)
         inst.operand -= 1
         inst.operand &= 0xff
         c.setNZ(inst.operand)
         c.setMem(inst.addr, inst.operand)
     case DCP:
+        c.setMem(inst.addr, inst.operand)
         c.setMem(inst.addr, (inst.operand-1)&0xff)
         c.compare(c.a, (inst.operand-1)&0xff)
     case ISB:
+        c.setMem(inst.addr, inst.operand)
         inst.operand = (inst.operand + 1) & 0xff
         c.setMem(inst.addr, inst.operand)
         a7 = c.a & (1 << 7)
@@ -319,6 +331,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(c.a)
     case LSR:
         c.setFlag(C, inst.operand&1 != 0)
+        c.setMem(inst.addr, inst.operand) //dummy
         inst.operand >>= 1
         c.setMem(inst.addr, inst.operand)
         c.setNZ(inst.operand)
@@ -328,6 +341,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(c.a)
     case ASL:
         c.setFlag(C, inst.operand&(1<<7) != 0)
+        c.setMem(inst.addr, inst.operand) //dummy
         inst.operand <<= 1
         c.setMem(inst.addr, inst.operand)
         c.setNZ(inst.operand)
@@ -391,6 +405,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(c.a)
     case ROR:
         m = inst.operand & 1
+        c.setMem(inst.addr, inst.operand) //dummy
         inst.operand >>= 1
         if c.getFlag(C) {
             inst.operand |= 1 << 7
@@ -408,6 +423,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(c.a)
     case ROL:
         m = inst.operand & (1 << 7)
+        c.setMem(inst.addr, inst.operand) //dummy
         inst.operand <<= 1
         if c.getFlag(C) {
             inst.operand |= 1
@@ -423,6 +439,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(c.x)
     case RLA:
         m = inst.operand & (1 << 7)
+        c.setMem(inst.addr, inst.operand)
         inst.operand <<= 1
         if c.getFlag(C) {
             inst.operand |= 1
@@ -433,18 +450,21 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.setNZ(c.a)
     case SLO:
         c.setFlag(C, inst.operand&(1<<7) != 0)
+        c.setMem(inst.addr, inst.operand)
         inst.operand <<= 1
         c.setMem(inst.addr, inst.operand)
         c.a |= inst.operand
         c.setNZ(c.a)
     case SRE:
         c.setFlag(C, inst.operand&1 != 0)
+        c.setMem(inst.addr, inst.operand)
         inst.operand >>= 1
         c.setMem(inst.addr, inst.operand)
         c.a ^= inst.operand
         c.setNZ(c.a)
     case RRA:
         m = inst.operand & 1
+        c.setMem(inst.addr, inst.operand)
         inst.operand >>= 1
         if c.getFlag(C) {
             inst.operand |= 1 << 7

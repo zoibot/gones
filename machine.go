@@ -118,7 +118,7 @@ func (m *Machine) Run(debug bool) {
     pc := word(0)
     for true {
         pc = m.cpu.pc
-        if pc == 0xe87f {
+        if pc == 0xe302 {
             fmt.Printf("delay time %v\n", m.cpu.cycleCount -debugCycles)
         } else if pc == 0xe86d {
             debugCycles = m.cpu.cycleCount
@@ -131,5 +131,25 @@ func (m *Machine) Run(debug bool) {
         m.ppu.setNTMirroring(m.rom.mirror)
         m.ppu.run()
         m.apu.update(cycles)
+
+        //special handling for blargg tests
+        if(m.rom.prg_ram[1] == 0xde && m.rom.prg_ram[2] == 0xb0) {
+            switch(m.rom.prg_ram[0]) {
+                case 0x80:
+                    //test running
+                case 0x81:
+                    //need reset
+                default:
+                    fmt.Println("test done")
+                    i := 0
+                    for i = 4; i < len(m.rom.prg_ram)-4; i++ {
+                        if m.rom.prg_ram[i] == 0x0 {
+                            break
+                        }
+                    }
+                    fmt.Println(string(m.rom.prg_ram[4:i]))
+                    os.Exit(0)
+            }
+        }
     }
 }

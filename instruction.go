@@ -131,7 +131,7 @@ type Opcode struct {
 }
 
 func makeOpcodeF(o op, a address_mode, c int, epc int) Opcode {
-    st := o == STA || o == STX || o == STY
+    st := o == STA || o == STX || o == STY || o == SAX
     return Opcode{o, a, false, c, st, epc}
 }
 
@@ -275,7 +275,7 @@ var Opcodes = [0x100]Opcode{
     makeOpcodeS(STY, ZP_ST, 3),
     makeOpcodeS(STA, ZP_ST, 3),
     makeOpcodeS(STX, ZP_ST, 3),
-    makeOpcodeS(SAX, ZP, 3),
+    makeOpcodeS(SAX, ZP_ST, 3),
     makeOpcodeS(DEY, IMP, 2),
     makeOpcodeS(DOP, IMM, 2),
     makeOpcodeS(TXA, IMP, 2),
@@ -283,7 +283,7 @@ var Opcodes = [0x100]Opcode{
     makeOpcodeS(STY, ABS_ST, 4),
     makeOpcodeS(STA, ABS_ST, 4),
     makeOpcodeS(STX, ABS_ST, 4),
-    makeOpcodeS(SAX, ABS, 4),
+    makeOpcodeS(SAX, ABS_ST, 4),
     makeOpcodeS(BCC, REL, 2),
     makeOpcodeF(STA, IDIX, 6, 0),
     makeOpcodeS(KIL, IMP, 0),
@@ -470,33 +470,37 @@ func (c *CPU) nextInstruction() Instruction {
         arglen = 1
     case ABS:
         addr, args[1], args[0] = c.nextWordArgs()
-        operand = c.getMem(addr)
+        if op.op != JMP {
+            operand = c.getMem(addr)
+        }
         arglen = 2
     case ABS_ST:
         addr, args[1], args[0] = c.nextWordArgs()
         arglen = 2
     case ABSI:
         i_addr, args[1], args[0] = c.nextWordArgs()
-        addr = wordFromBytes(c.getMem((i_addr+1)&0xff+(i_addr&0xff00)), (c.m.getMem(i_addr)))
+        addr = wordFromBytes(c.getMem((i_addr+1)&0xff+(i_addr&0xff00)), (c.getMem(i_addr)))
         arglen = 2
     case ABSY:
         i_addr, args[1], args[0] = c.nextWordArgs()
         addr = i_addr + word(c.y)&0xffff
+        operand = c.getMem((i_addr&0xff00)|(addr&0xff))
         if !op.store {
-            operand = c.getMem(addr)
-        }
-        if i_addr&0xff00 != addr&0xff00 {
-            extra_cycles += op.extra_page_cross
+            if i_addr&0xff00 != addr&0xff00 || op.extra_page_cross == 0 {
+                operand = c.getMem(addr)
+                extra_cycles += op.extra_page_cross
+            }
         }
         arglen = 2
     case ABSX:
         i_addr, args[1], args[0] = c.nextWordArgs()
-        addr = i_addr + word(c.x)&0xffff
+        addr = (i_addr+word(c.x)) & 0xffff
+        operand = c.getMem((i_addr&0xff00)|(addr&0xff))
         if !op.store {
-            operand = c.getMem(addr)
-        }
-        if i_addr&0xff00 != addr&0xff00 {
-            extra_cycles += op.extra_page_cross
+            if i_addr&0xff00 != addr&0xff00 || op.extra_page_cross == 0 {
+                operand = c.getMem(addr)
+                extra_cycles += op.extra_page_cross
+            }
         }
         arglen = 2
     case REL:
@@ -506,8 +510,9 @@ func (c *CPU) nextInstruction() Instruction {
         arglen = 1
     case IXID:
         args[0] = c.nextByte()
+        c.getMem(word(args[0])) //dummy
         i_addr = word((args[0] + c.x) & 0xff)
-        addr = wordFromBytes(c.getMem((i_addr+1)&0xff), c.m.getMem(i_addr))
+        addr = wordFromBytes(c.getMem((i_addr+1)&0xff), c.getMem(i_addr))
         if !op.store {
             operand = c.getMem(addr)
         }
@@ -518,15 +523,18 @@ func (c *CPU) nextInstruction() Instruction {
             c.getMem(word(args[0])))
         addr += word(c.y)
         addr &= 0xffff
-        if !op.store {
+        //fetch from same page
+        operand = c.getMem(((addr-word(c.y))&0xff00)|(addr&0xff))
+        if (addr&0xff00 != (addr-word(c.y))&0xff00 ||
+            op.extra_page_cross == 0) && !op.store {
+            //fetch correct address
             operand = c.getMem(addr)
-        }
-        if addr&0xff00 != (addr-word(c.y))&0xff00 {
             extra_cycles += op.extra_page_cross
         }
         arglen = 1
     case ZPX:
         args[0] = c.nextByte()
+        c.getMem(word(args[0])) //dummy
         addr = word((args[0] + c.x) & 0xff)
         if !op.store {
             operand = c.getMem(addr)
@@ -535,6 +543,7 @@ func (c *CPU) nextInstruction() Instruction {
     case ZPY:
         args[0] = c.nextByte()
         addr = word((args[0] + c.y) & 0xff)
+        c.getMem(word(args[0])) //dummy
         if !op.store {
             operand = c.getMem(addr)
         }
