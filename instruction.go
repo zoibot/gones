@@ -461,7 +461,7 @@ func (c *CPU) nextInstruction() Instruction {
         arglen = 1
     case ZP:
         addr = word(c.nextByte())
-        operand = c.m.getMem(addr)
+        operand = c.getMem(addr)
         args[0] = byte(addr)
         arglen = 1
     case ZP_ST:
@@ -470,20 +470,20 @@ func (c *CPU) nextInstruction() Instruction {
         arglen = 1
     case ABS:
         addr, args[1], args[0] = c.nextWordArgs()
-        operand = c.m.getMem(addr)
+        operand = c.getMem(addr)
         arglen = 2
     case ABS_ST:
         addr, args[1], args[0] = c.nextWordArgs()
         arglen = 2
     case ABSI:
         i_addr, args[1], args[0] = c.nextWordArgs()
-        addr = wordFromBytes(c.m.getMem((i_addr+1)&0xff+(i_addr&0xff00)), (c.m.getMem(i_addr)))
+        addr = wordFromBytes(c.getMem((i_addr+1)&0xff+(i_addr&0xff00)), (c.m.getMem(i_addr)))
         arglen = 2
     case ABSY:
         i_addr, args[1], args[0] = c.nextWordArgs()
         addr = i_addr + word(c.y)&0xffff
         if !op.store {
-            operand = c.m.getMem(addr)
+            operand = c.getMem(addr)
         }
         if i_addr&0xff00 != addr&0xff00 {
             extra_cycles += op.extra_page_cross
@@ -493,7 +493,7 @@ func (c *CPU) nextInstruction() Instruction {
         i_addr, args[1], args[0] = c.nextWordArgs()
         addr = i_addr + word(c.x)&0xffff
         if !op.store {
-            operand = c.m.getMem(addr)
+            operand = c.getMem(addr)
         }
         if i_addr&0xff00 != addr&0xff00 {
             extra_cycles += op.extra_page_cross
@@ -507,19 +507,19 @@ func (c *CPU) nextInstruction() Instruction {
     case IXID:
         args[0] = c.nextByte()
         i_addr = word((args[0] + c.x) & 0xff)
-        addr = wordFromBytes(c.m.getMem((i_addr+1)&0xff), c.m.getMem(i_addr))
+        addr = wordFromBytes(c.getMem((i_addr+1)&0xff), c.m.getMem(i_addr))
         if !op.store {
-            operand = c.m.getMem(addr)
+            operand = c.getMem(addr)
         }
         arglen = 1
     case IDIX:
         args[0] = c.nextByte()
-        addr = wordFromBytes(c.m.getMem(word(args[0]+1&0xff)),
-            c.m.getMem(word(args[0])))
+        addr = wordFromBytes(c.getMem(word(args[0]+1&0xff)),
+            c.getMem(word(args[0])))
         addr += word(c.y)
         addr &= 0xffff
         if !op.store {
-            operand = c.m.getMem(addr)
+            operand = c.getMem(addr)
         }
         if addr&0xff00 != (addr-word(c.y))&0xff00 {
             extra_cycles += op.extra_page_cross
@@ -529,16 +529,19 @@ func (c *CPU) nextInstruction() Instruction {
         args[0] = c.nextByte()
         addr = word((args[0] + c.x) & 0xff)
         if !op.store {
-            operand = c.m.getMem(addr)
+            operand = c.getMem(addr)
         }
         arglen = 1
     case ZPY:
         args[0] = c.nextByte()
         addr = word((args[0] + c.y) & 0xff)
         if !op.store {
-            operand = c.m.getMem(addr)
+            operand = c.getMem(addr)
         }
         arglen = 1
+    case IMP, A:
+        //dummy read
+        c.getMem(c.pc+1)
     default:
         arglen = 0
     }

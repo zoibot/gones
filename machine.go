@@ -9,6 +9,7 @@ import (
 type Machine struct {
     cpu              *CPU
     ppu              *PPU
+    apu              *APU
     rom              *ROM
     mem              [0x800]byte
     input            chan []byte
@@ -26,6 +27,7 @@ func MakeMachine(romname string, frames chan []int, input chan []byte) *Machine 
     m.rom.loadRom(f)
     m.cpu = makeCPU(m)
     m.ppu = makePPU(m, frames)
+    m.apu = makeAPU(m)
     m.keys = make([]byte, 8)
     for i := 0; i < 0x800; i++ {
         m.mem[i] = 0xff
@@ -38,6 +40,7 @@ func (m *Machine) getMem(addr word) byte {
     case addr < 0x2000:
         return m.mem[addr&0x7ff]
     case addr < 0x4000:
+        m.ppu.run()
         return m.ppu.readRegister(int(addr & 7))
     case addr < 0x4018:
         switch addr {
@@ -48,6 +51,8 @@ func (m *Machine) getMem(addr word) byte {
             } else {
                 return 1
             }
+        default:
+            return m.apu.readRegister(byte(addr - 0x4000))
         }
         //apu etc
         return 0
@@ -67,6 +72,7 @@ func (m *Machine) setMem(addr word, val byte) {
     case addr < 0x2000:
         m.mem[addr&0x7ff] = val
     case addr < 0x4000:
+        m.ppu.run()
         m.ppu.writeRegister(int(addr&7), val)
     case addr < 0x4018:
         switch addr {
@@ -80,6 +86,8 @@ func (m *Machine) setMem(addr word, val byte) {
                 addr := (v + m.ppu.objAddr) & 0xff
                 m.ppu.objMem[addr] = m.mem[(word(val)<<8)|v]
             }
+        default:
+            m.apu.writeRegister(byte(addr - 0x4000), val)
         }
         //apu etc
     case addr < 0x6000:
@@ -91,6 +99,11 @@ func (m *Machine) setMem(addr word, val byte) {
     }
 }
 
+func (m *Machine) syncPPU(cycles uint) {
+    m.cpu.cycleCount += uint64(cycles)
+    m.ppu.run()
+}
+
 func (m *Machine) Debug(keysym uint32) {
     switch keysym {
     case sdl.K_d:
@@ -99,17 +112,24 @@ func (m *Machine) Debug(keysym uint32) {
 }
 
 func (m *Machine) Run(debug bool) {
+    debugCycles := uint64(0)
     m.cpu.reset()
     var inst = Instruction{}
     pc := word(0)
     for true {
         pc = m.cpu.pc
+        if pc == 0xe87f {
+            fmt.Printf("delay time %v\n", m.cpu.cycleCount -debugCycles)
+        } else if pc == 0xe86d {
+            debugCycles = m.cpu.cycleCount
+        }
         inst = m.cpu.nextInstruction()
         if debug {
             fmt.Printf("%X  %v %s %s\n", pc, inst, m.cpu.regs(), m.ppu.dump())
         }
-        m.cpu.runInstruction(&inst)
+        cycles := m.cpu.runInstruction(&inst)
         m.ppu.setNTMirroring(m.rom.mirror)
         m.ppu.run()
+        m.apu.update(cycles)
     }
 }

@@ -22,6 +22,7 @@ type PPU struct {
     screen []int
     //cycles
     cycleCount uint64
+    oddFrame bool
     //memory
     mem         [0x4000]byte
     memBuf      byte
@@ -40,6 +41,8 @@ type PPU struct {
     cyc              int
     objMem           [0x100]byte
     objAddr          word
+    //debugging
+    frameCounter     uint64
 }
 
 type Sprite struct {
@@ -440,7 +443,11 @@ func (p *PPU) run() {
                 }
             }
         default:
-            p.cycleCount += 341 * 20
+            p.cycleCount += 341 * 19
+            if p.oddFrame {
+                p.cycleCount -= 1
+            }
+            p.oddFrame = !p.oddFrame
             p.drawFrame()
         }
     }

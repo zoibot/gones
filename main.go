@@ -90,7 +90,6 @@ func run(debug bool) {
     for {
         select {
         case event := <-sdl.Events:
-            fmt.Println("event")
             switch e := event.(type) {
             case sdl.QuitEvent:
                 fmt.Printf("Quitting\n")
