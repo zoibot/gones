@@ -140,8 +140,6 @@ func (m *Machine) Run(debug bool) {
     for true {
         pc = m.cpu.pc
         inst = m.cpu.nextInstruction()
-        if pc == 0xe345 {
-        }
         if debug {
             fmt.Printf("%X  %v %s %s\n", pc, inst, m.cpu.regs(), m.ppu.dump())
         }

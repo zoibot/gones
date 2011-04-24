@@ -24,6 +24,7 @@ type PPU struct {
     cycleCount uint64
     oddFrame bool
     lastNMI uint64
+    vblOff uint64
     NMIOccurred bool
     //memory
     mem         [0x4000]byte
@@ -169,15 +170,17 @@ func (p *PPU) writeRegister(num int, val byte) {
     switch num {
     case 0:
         p.pctrl = val
+        cycles := p.mach.cpu.cycleCount * 3
         if p.pctrl & (1<<7) != 0 {
-            fmt.Printf("setting it. vbl: %v, no: %v ", p.pstat & (1<<7)!=0, p.NMIOccurred)
-            if p.pstat & (1<<7) != 0 && !p.NMIOccurred {
-                fmt.Printf("doing nmi")
+            if (p.pstat & (1<<7) != 0 || (cycles - p.vblOff <= 2)) && !p.NMIOccurred {
                 p.mach.requestNMI()
                 p.NMIOccurred = true
             }
         } else {
             p.NMIOccurred = false
+            if (cycles - p.lastNMI < 6) {
+                p.mach.suppressNMI()
+            }
         }
         fmt.Println("")
         p.taddr &= (^word(0x3 << 10))
@@ -297,7 +300,6 @@ func (p *PPU) doVblank(renderingEnabled bool) {
         p.cycleCount += uint64(341 - p.cyc)
         p.cyc = 0
         p.sl += 1
-        p.pstat &= ^byte(1 << 7)
         if renderingEnabled {
             p.vaddr = p.taddr
             p.fineX = p.xoff
@@ -425,8 +427,25 @@ func (p *PPU) run() {
         case p.sl == -2:
             p.doVblank(renderingEnabled)
         case p.sl == -1:
-            p.cycleCount += 341
-            p.sl += 1
+            switch p.cyc {
+            case 0:
+                p.pstat &= ^byte(1 << 7)
+                p.vblOff = p.cycleCount
+                p.cycleCount += 340
+                p.cyc += 340
+            case 340:
+                if bgEnabled{
+                    if p.oddFrame {
+                        p.cycleCount -= 1
+                    }
+                }
+                p.oddFrame = !p.oddFrame
+                p.cycleCount++
+                p.cyc++
+            case 341:
+                p.cyc = 0
+                p.sl += 1
+            }
         case p.sl < 240:
             todo := 0
             if 341-p.cyc > cycles {
@@ -468,12 +487,6 @@ func (p *PPU) run() {
             }
         default:
             p.cycleCount += 341 * 19
-            if bgEnabled{
-                if p.oddFrame {
-                    p.cycleCount -= 1
-                }
-            }
-            p.oddFrame = !p.oddFrame
             p.drawFrame()
         }
     }
