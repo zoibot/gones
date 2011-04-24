@@ -55,8 +55,9 @@ func (c *CPU) setNZ(val byte) {
 }
 
 func (c *CPU) getMem(addr word) byte {
+    val := c.m.getMem(addr)
     c.cycleCount++
-    return c.m.getMem(addr)
+    return val
 }
 
 func (c *CPU) setMem(addr word, val byte) {

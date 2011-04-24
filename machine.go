@@ -15,6 +15,8 @@ type Machine struct {
     input            chan []byte
     read_input_state byte
     keys             []byte
+    //interrupts
+    scheduledNMI     int
 }
 
 func MakeMachine(romname string, frames chan []int, input chan []byte) *Machine {
@@ -99,6 +101,26 @@ func (m *Machine) setMem(addr word, val byte) {
     }
 }
 
+func (m *Machine) requestNMI() {
+    m.scheduledNMI = 2
+}
+
+func (m *Machine) suppressNMI() {
+    m.scheduledNMI = -1
+}
+
+func (m *Machine) requestIrq() {
+}
+
+func (m *Machine) runInterrupts() {
+    if m.scheduledNMI >= 0 {
+        m.scheduledNMI -= 1
+    }
+    if m.scheduledNMI == 0 {
+        m.cpu.nmi()
+    }
+}
+
 func (m *Machine) syncPPU(cycles uint) {
     m.cpu.cycleCount += uint64(cycles)
     m.ppu.run()
@@ -112,18 +134,14 @@ func (m *Machine) Debug(keysym uint32) {
 }
 
 func (m *Machine) Run(debug bool) {
-    debugCycles := uint64(0)
     m.cpu.reset()
     var inst = Instruction{}
     pc := word(0)
     for true {
         pc = m.cpu.pc
-        if pc == 0xe302 {
-            fmt.Printf("delay time %v\n", m.cpu.cycleCount -debugCycles)
-        } else if pc == 0xe86d {
-            debugCycles = m.cpu.cycleCount
-        }
         inst = m.cpu.nextInstruction()
+        if pc == 0xe345 {
+        }
         if debug {
             fmt.Printf("%X  %v %s %s\n", pc, inst, m.cpu.regs(), m.ppu.dump())
         }
@@ -131,6 +149,7 @@ func (m *Machine) Run(debug bool) {
         m.ppu.setNTMirroring(m.rom.mirror)
         m.ppu.run()
         m.apu.update(cycles)
+        m.runInterrupts()
 
         //special handling for blargg tests
         if(m.rom.prg_ram[1] == 0xde && m.rom.prg_ram[2] == 0xb0) {

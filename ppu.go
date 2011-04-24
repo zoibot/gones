@@ -23,6 +23,8 @@ type PPU struct {
     //cycles
     cycleCount uint64
     oddFrame bool
+    lastNMI uint64
+    NMIOccurred bool
     //memory
     mem         [0x4000]byte
     memBuf      byte
@@ -134,6 +136,13 @@ func (p *PPU) readRegister(num int) byte {
         ret = p.pstat
         p.pstat &= ^byte(1 << 7)
         p.latch = false
+        cycles := p.mach.cpu.cycleCount * 3
+        if cycles - p.lastNMI < 3 {
+            p.mach.suppressNMI()
+            if cycles - p.lastNMI == 0 {
+                ret = p.pstat
+            }
+        }
         return ret
     case 4:
         return p.objMem[p.objAddr]
@@ -160,6 +169,17 @@ func (p *PPU) writeRegister(num int, val byte) {
     switch num {
     case 0:
         p.pctrl = val
+        if p.pctrl & (1<<7) != 0 {
+            fmt.Printf("setting it. vbl: %v, no: %v ", p.pstat & (1<<7)!=0, p.NMIOccurred)
+            if p.pstat & (1<<7) != 0 && !p.NMIOccurred {
+                fmt.Printf("doing nmi")
+                p.mach.requestNMI()
+                p.NMIOccurred = true
+            }
+        } else {
+            p.NMIOccurred = false
+        }
+        fmt.Println("")
         p.taddr &= (^word(0x3 << 10))
         p.taddr |= word(val&0x3) << 10
     case 1:
@@ -277,7 +297,7 @@ func (p *PPU) doVblank(renderingEnabled bool) {
         p.cycleCount += uint64(341 - p.cyc)
         p.cyc = 0
         p.sl += 1
-    p.pstat &= ^byte(1 << 7)
+        p.pstat &= ^byte(1 << 7)
         if renderingEnabled {
             p.vaddr = p.taddr
             p.fineX = p.xoff
@@ -436,16 +456,22 @@ func (p *PPU) run() {
                 p.cycleCount += uint64(341 - p.cyc)
                 p.cyc = 0
                 p.sl += 1
+                p.lastNMI = p.cycleCount
                 p.pstat |= (1 << 7)
                 p.pstat &= ^byte(1 << 6)
                 if p.pctrl&(1<<7) != 0 {
-                    p.mach.cpu.nmi()
+                    p.mach.requestNMI()
+                    p.NMIOccurred = true
+                } else {
+                    p.NMIOccurred = false
                 }
             }
         default:
             p.cycleCount += 341 * 19
-            if p.oddFrame {
-                p.cycleCount -= 1
+            if bgEnabled{
+                if p.oddFrame {
+                    p.cycleCount -= 1
+                }
             }
             p.oddFrame = !p.oddFrame
             p.drawFrame()
