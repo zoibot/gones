@@ -88,6 +88,7 @@ func (m *Machine) setMem(addr word, val byte) {
                 addr := (v + m.ppu.objAddr) & 0xff
                 m.ppu.objMem[addr] = m.mem[(word(val)<<8)|v]
             }
+            m.cpu.cycleCount += 513
         default:
             m.apu.writeRegister(byte(addr - 0x4000), val)
         }

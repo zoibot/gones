@@ -429,6 +429,7 @@ func (p *PPU) run() {
             switch p.cyc {
             case 0:
                 p.pstat &= ^byte(1 << 7)
+                p.pstat &= ^byte(1 << 6)
                 p.vblOff = p.cycleCount
                 p.cycleCount += 340
                 p.cyc += 340
@@ -476,7 +477,6 @@ func (p *PPU) run() {
                 p.sl += 1
                 p.lastNMI = p.cycleCount
                 p.pstat |= (1 << 7)
-                p.pstat &= ^byte(1 << 6)
                 if p.pctrl&(1<<7) != 0 {
                     p.mach.requestNMI()
                     p.NMIOccurred = true
