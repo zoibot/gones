@@ -281,11 +281,12 @@ func (p *PPU) newScanline() {
     for i := 0; i < 64; i++ {
         (&s).setSpr(i, p.objMem[i*4:i*4+4])
         if int(s.y) <= curY && (curY < int(s.y)+8 || (p.pctrl&(1<<5) != 0 && curY < int(s.y)+16)) {
-            p.curSprs[p.numSprs] = s
-            p.numSprs++
             if p.numSprs == 8 {
+                p.pstat |= 1 << 5
                 break
             }
+            p.curSprs[p.numSprs] = s
+            p.numSprs++
         }
     }
 }
@@ -430,6 +431,7 @@ func (p *PPU) run() {
             case 0:
                 p.pstat &= ^byte(1 << 7)
                 p.pstat &= ^byte(1 << 6)
+                p.pstat &= ^byte(1 << 5)
                 p.vblOff = p.cycleCount
                 p.cycleCount += 340
                 p.cyc += 340
