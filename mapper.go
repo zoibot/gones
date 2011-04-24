@@ -22,6 +22,8 @@ func loadMapper(num byte, rom *ROM) Mapper {
         m = new(CNROM)
     case 4:
         m = new(MMC3)
+    case 7:
+        m = new (AXROM)
     default:
         fmt.Printf("Unsupported Mapper: %d\n", num)
         os.Exit(1)
@@ -223,3 +225,31 @@ func (c *MMC3) prgWrite(addr word, val byte) {
 func (c *MMC3) name() string {
     return "MMC3"
 }
+
+type AXROM struct{
+    rom *ROM
+}
+
+func (a *AXROM) load(rom *ROM) {
+    a.rom = rom
+    a.rom.prg_rom[0] = a.rom.prg_banks
+    a.rom.prg_rom[1] = a.rom.prg_banks[0x4000:]//*int(a.rom.prg_size-1):]
+    a.rom.chr_rom[0] = a.rom.chr_banks
+    a.rom.chr_rom[1] = a.rom.chr_banks[0x1000:]
+    a.rom.chr_bank_size = 0x1000
+    a.rom.prg_bank_size = 0x4000
+}
+
+func (a *AXROM) prgWrite(addr word, val byte) {
+    a.rom.prg_rom[0] = a.rom.prg_banks[0x8000 * int(val&7):]
+    a.rom.prg_rom[1] = a.rom.prg_banks[0x8000 * int(val&7) + 0x4000:]
+    if val & 0x10 != 0 {
+        a.rom.mirror = SINGLE_LOWER
+    } else {
+        a.rom.mirror = SINGLE_UPPER
+    }
+}
+
+func (a *AXROM) name() string { return "AXROM" }
+
+
