@@ -182,7 +182,6 @@ func (p *PPU) writeRegister(num int, val byte) {
                 p.mach.suppressNMI()
             }
         }
-        fmt.Println("")
         p.taddr &= (^word(0x3 << 10))
         p.taddr |= word(val&0x3) << 10
     case 1:
@@ -277,11 +276,11 @@ func (p *PPU) newScanline() {
     p.fineX = p.xoff
     //sprites
     p.numSprs = 0
-    curY := byte(p.sl - 1)
+    curY := p.sl - 1
     s := Sprite{}
     for i := 0; i < 64; i++ {
         (&s).setSpr(i, p.objMem[i*4:i*4+4])
-        if s.y <= curY && (curY < s.y+8 || (p.pctrl&(1<<5) != 0 && curY < s.y+16)) {
+        if int(s.y) <= curY && (curY < int(s.y)+8 || (p.pctrl&(1<<5) != 0 && curY < int(s.y)+16)) {
             p.curSprs[p.numSprs] = s
             p.numSprs++
             if p.numSprs == 8 {
@@ -346,7 +345,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
         if spriteEnabled && !(xoff < 8 && (p.pmask&4 == 0)) {
             cur := Sprite{}
             for i := 0; i < p.numSprs; i++ {
-                if p.curSprs[i].x <= byte(xoff) && byte(xoff) < p.curSprs[i].x+8 {
+                if int(p.curSprs[i].x) <= xoff && xoff < int(p.curSprs[i].x)+8 {
                     tile := byte(0)
                     cur = p.curSprs[i]
                     pal := (1 << 4) | ((cur.attrs & 3) << 2)
@@ -380,7 +379,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                     shi <<= 1
                     slo >>= (7 - xsoff)
                     slo &= 1
-                    if cur.index == 0 && (hi|lo) != 0 && (shi|slo) != 0 && bgEnabled {
+                    if cur.index == 0 && (hi|lo) != 0 && (shi|slo) != 0 && bgEnabled && !(xoff < 8 && (p.pmask & 2 == 0)) && xoff < 255 {
                         p.pstat |= 1 << 6
                     }
                     if (hi|lo == 0 && shi|slo != 0) || (cur.attrs&(1<<5) == 0) {
