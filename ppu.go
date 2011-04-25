@@ -137,7 +137,7 @@ func (p *PPU) readRegister(num int) byte {
         ret = p.pstat
         p.pstat &= ^byte(1 << 7)
         p.latch = false
-        cycles := p.mach.cpu.cycleCount * 3
+        cycles := p.cycleCount
         if cycles - p.lastNMI < 3 {
             p.mach.suppressNMI()
             if cycles - p.lastNMI == 0 {
@@ -475,6 +475,7 @@ func (p *PPU) run() {
                 p.cycleCount += uint64(cycles)
             } else {
                 p.cycleCount += uint64(341 - p.cyc)
+                cycles -= (341 - p.cyc)
                 p.cyc = 0
                 p.sl += 1
                 p.lastNMI = p.cycleCount
@@ -486,8 +487,17 @@ func (p *PPU) run() {
                     p.NMIOccurred = false
                 }
             }
+        case p.sl == 241:
+            if 341-p.cyc > cycles {
+                p.cycleCount += uint64(cycles)
+                p.cyc += cycles
+            } else {
+                p.cycleCount += uint64(341 - p.cyc)
+                p.cyc = 0
+                p.sl += 1
+            }
         default:
-            p.cycleCount += 341 * 19
+            p.cycleCount += 341 * 18
             p.drawFrame()
         }
     }

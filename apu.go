@@ -127,6 +127,7 @@ func (a *APU) writeRegister(num byte, val byte) {
             a.frameIrq = true
         }
     default:
+        break
         fmt.Printf("weird APU register %v\n", num)
     }
 }
