@@ -430,8 +430,8 @@ func (p *PPU) run() {
     bgEnabled := p.pmask&(1<<3) != 0
     spriteEnabled := p.pmask&(1<<4) != 0
     renderingEnabled := bgEnabled || spriteEnabled
-    cycles := int(p.mach.cpu.cycleCount*3 - p.cycleCount)
     for p.cycleCount < p.mach.cpu.cycleCount*3 {
+        cycles := int(p.mach.cpu.cycleCount*3 - p.cycleCount)
         switch true {
         case p.sl == -2:
             p.doVblank(renderingEnabled)
@@ -496,7 +496,6 @@ func (p *PPU) run() {
                 p.cycleCount += uint64(cycles)
             } else {
                 p.cycleCount += uint64(341 - p.cyc)
-                cycles -= (341 - p.cyc)
                 p.cyc = 0
                 p.sl += 1
                 p.lastNMI = p.cycleCount
@@ -518,6 +517,7 @@ func (p *PPU) run() {
                 p.sl += 1
             }
         default:
+            //vblank for 18 + 2 = 20 scanlines
             p.cycleCount += 341 * 18
             p.drawFrame()
         }
