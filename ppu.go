@@ -144,6 +144,7 @@ func (p *PPU) readRegister(num int) byte {
                 ret = p.pstat
             }
         }
+	fmt.Printf("off2002 %v, stat %v\n", cycles - p.lastNMI, ret)
         return ret
     case 4:
         return p.objMem[p.objAddr]
@@ -479,6 +480,7 @@ func (p *PPU) run() {
                 p.cyc = 0
                 p.sl += 1
                 p.lastNMI = p.cycleCount
+		fmt.Printf("hello %v\n", cycles)
                 p.pstat |= (1 << 7)
                 if p.pctrl&(1<<7) != 0 {
                     p.mach.requestNMI()
@@ -496,6 +498,7 @@ func (p *PPU) run() {
                 p.cyc = 0
                 p.sl += 1
             }
+	    fmt.Printf("off %v\n", p.cycleCount - p.lastNMI)
         default:
             p.cycleCount += 341 * 18
             p.drawFrame()
