@@ -36,6 +36,8 @@ type PPU struct {
     pctrl       byte
     //position
     xoff, fineX      byte
+    horizScroll      bool
+    vertScroll       bool
     curSprs          [8]Sprite
     numSprs          int
     currentMirroring int
@@ -170,7 +172,7 @@ func (p *PPU) writeRegister(num int, val byte) {
     switch num {
     case 0:
         p.pctrl = val
-        cycles := p.cycleCount
+        cycles := p.mach.cpu.cycleCount*3
         if p.pctrl & (1<<7) != 0 {
             if (p.pstat & (1<<7) != 0 || (cycles - p.vblOff <= 2)) && !p.NMIOccurred {
                 p.mach.requestNMI()
@@ -209,6 +211,9 @@ func (p *PPU) writeRegister(num int, val byte) {
             p.taddr &= ^word(0xff)
             p.taddr |= word(val)
             p.vaddr = p.taddr
+            if p.cyc >= 251 && p.sl < 240 && p.sl >= 0 {
+                p.vertScroll = true
+            }
         } else {
             p.taddr &= 0xff
             p.taddr |= word(val&0x3f) << 8
@@ -257,23 +262,11 @@ func (p *PPU) setMem(addr word, val byte) {
 }
 
 func (p *PPU) newScanline() {
-    fineY := (p.vaddr & 0x7000) >> 12
-    if fineY == 7 {
-        if p.vaddr&0x3ff >= 0x3e0 {
-            p.vaddr &= ^word(0x3ff)
-        } else {
-            p.vaddr += 0x20
-            if p.vaddr&0x3ff >= 0x3c0 {
-                p.vaddr &= ^word(0x3ff)
-                p.vaddr ^= 0x800
-            }
-        }
+    if !p.vertScroll {
+        p.updateVertScroll()
     }
-    p.vaddr &= ^word(0x741f)
-    p.vaddr |= p.taddr & 0x1f
-    p.vaddr |= p.taddr & 0x400
-    p.vaddr |= (fineY + 1) & 7 << 12
-    p.fineX = p.xoff
+    p.vertScroll = false
+    p.horizScroll = false
     //sprites
     p.numSprs = 0
     curY := p.sl - 1
@@ -291,6 +284,23 @@ func (p *PPU) newScanline() {
     }
 }
 
+func (p *PPU) updateVertScroll() {
+    fineY := (p.vaddr & 0x7000) >> 12
+    if fineY == 7 {
+        if p.vaddr&0x3ff >= 0x3e0 {
+            p.vaddr &= ^word(0x3ff)
+        } else {
+            p.vaddr += 0x20
+            if p.vaddr&0x3ff >= 0x3c0 {
+                p.vaddr &= ^word(0x3ff)
+                p.vaddr ^= 0x800
+            }
+        }
+    }
+    p.vaddr &= ^word(0x7000)
+    p.vaddr |= (fineY + 1) & 7 << 12
+}
+
 func (p *PPU) doVblank(renderingEnabled bool) {
     cycles := int(p.mach.cpu.cycleCount*3 - p.cycleCount)
     if 341-p.cyc > cycles {
@@ -301,7 +311,6 @@ func (p *PPU) doVblank(renderingEnabled bool) {
         p.cyc = 0
         p.sl += 1
         if renderingEnabled {
-            p.vaddr = p.taddr
             p.fineX = p.xoff
         }
     }
@@ -433,8 +442,14 @@ func (p *PPU) run() {
                 p.pstat &= ^byte(1 << 6)
                 p.pstat &= ^byte(1 << 5)
                 p.vblOff = p.cycleCount
-                p.cycleCount += 340
-                p.cyc += 340
+                p.cycleCount += 304
+                p.cyc += 304
+            case 304:
+                if bgEnabled {
+                    p.vaddr = p.taddr
+                }
+                p.cycleCount += 36
+                p.cyc += 36
             case 340:
                 if bgEnabled{
                     if p.oddFrame {
@@ -458,7 +473,13 @@ func (p *PPU) run() {
             y := byte(p.sl)
             if renderingEnabled && p.cyc < 256 {
                 p.renderPixels(byte(p.cyc), y, byte(min(todo, 256-p.cyc)))
-            } else if p.cyc >= 257 {
+            }
+            if p.cyc >= 257 && !p.horizScroll {
+                p.vaddr &= ^word(0x041f)
+                p.vaddr |= p.taddr & 0x1f
+                p.vaddr |= p.taddr & 0x400
+                p.fineX = p.xoff
+                p.horizScroll = true
             }
             p.cyc += todo
             p.cycleCount += uint64(todo)
