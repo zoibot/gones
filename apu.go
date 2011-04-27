@@ -169,7 +169,7 @@ func (a *APU) update(cycles int) {
         a.oddClock = !a.oddClock
     }
     if a.frameInterrupt {
-        //a.m.requestIrq()
+        a.m.requestIrq()
     }
 }
 

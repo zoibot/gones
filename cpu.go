@@ -15,15 +15,13 @@ const (
 type CPU struct {
     a, x, y, s, p byte
     pc            word
-    scheduledIrq  int
-    irqWaiting    bool
     cycleCount    uint64
     prevCycles    uint64
     m             *Machine
 }
 
 func makeCPU(m *Machine) *CPU {
-    return &CPU{0, 0, 0, 0, 0x24, 0, 0, false, 0, 0, m}
+    return &CPU{0, 0, 0, 0, 0x24, 0, 0, 0, m}
 }
 
 func (c *CPU) regs() string {
@@ -165,9 +163,9 @@ func (c *CPU) runInstruction(inst *Instruction) int {
         c.p = (c.pop() | (1 << 5)) & (^B)
         c.pc = c.pop2()
         if c.getFlag(I) {
-            c.scheduledIrq = 0
-        } else if c.irqWaiting {
-            c.scheduledIrq = 1
+            c.m.scheduledIRQ = -1
+        } else if c.m.irqWaiting {
+            c.m.scheduledIRQ = 1
         }
     case BRK:
         c.pc += 1

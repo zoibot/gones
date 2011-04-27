@@ -17,6 +17,8 @@ type Machine struct {
     keys             []byte
     //interrupts
     scheduledNMI     int
+    scheduledIRQ     int
+    irqWaiting       bool
 }
 
 func MakeMachine(romname string, frames chan []int, input chan []byte) *Machine {
@@ -111,14 +113,26 @@ func (m *Machine) suppressNMI() {
 }
 
 func (m *Machine) requestIrq() {
+    if m.scheduledIRQ < 0 && !m.cpu.getFlag(I) {
+        m.scheduledIRQ = 2
+    }
+    m.irqWaiting = true
 }
 
 func (m *Machine) runInterrupts() {
+    if m.scheduledIRQ >= 0 {
+        m.scheduledIRQ -= 1
+    }
     if m.scheduledNMI >= 0 {
         m.scheduledNMI -= 1
     }
     if m.scheduledNMI == 0 {
         m.cpu.nmi()
+        m.irqWaiting = false
+        m.scheduledIRQ = -1
+    } else if m.scheduledIRQ == 0 {
+        m.cpu.irq()
+        m.irqWaiting = false
     }
 }
 
