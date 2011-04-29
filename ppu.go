@@ -42,6 +42,7 @@ type PPU struct {
     numSprs          int
     currentMirroring int
     vaddr, taddr     word
+    nextVaddr        word
     sl               int
     cyc              int
     objMem           [0x100]byte
@@ -262,9 +263,6 @@ func (p *PPU) setMem(addr word, val byte) {
 }
 
 func (p *PPU) newScanline() {
-    if !p.vertScroll {
-        p.updateVertScroll()
-    }
     p.vertScroll = false
     p.horizScroll = false
     //sprites
@@ -285,20 +283,21 @@ func (p *PPU) newScanline() {
 }
 
 func (p *PPU) updateVertScroll() {
-    fineY := (p.vaddr & 0x7000) >> 12
+    p.nextVaddr = p.vaddr
+    fineY := (p.nextVaddr & 0x7000) >> 12
     if fineY == 7 {
-        if p.vaddr&0x3ff >= 0x3e0 {
-            p.vaddr &= ^word(0x3ff)
+        if p.nextVaddr&0x3ff >= 0x3e0 {
+            p.nextVaddr &= ^word(0x3ff)
         } else {
-            p.vaddr += 0x20
-            if p.vaddr&0x3ff >= 0x3c0 {
-                p.vaddr &= ^word(0x3ff)
-                p.vaddr ^= 0x800
+            p.nextVaddr += 0x20
+            if p.nextVaddr&0x3ff >= 0x3c0 {
+                p.nextVaddr &= ^word(0x3ff)
+                p.nextVaddr ^= 0x800
             }
         }
     }
-    p.vaddr &= ^word(0x7000)
-    p.vaddr |= (fineY + 1) & 7 << 12
+    p.nextVaddr &= ^word(0x7000)
+    p.nextVaddr |= (fineY + 1) & 7 << 12
 }
 
 func (p *PPU) doVblank(renderingEnabled bool) {
@@ -472,9 +471,15 @@ func (p *PPU) run() {
             }
             y := byte(p.sl)
             if renderingEnabled && p.cyc < 256 {
+                if p.cyc < 251 && p.cyc + todo >= 251 {
+                    p.updateVertScroll()
+                }
                 p.renderPixels(byte(p.cyc), y, byte(min(todo, 256-p.cyc)))
             }
             if p.cyc >= 257 && !p.horizScroll {
+                if !p.vertScroll {
+                    p.vaddr = p.nextVaddr
+                }
                 p.vaddr &= ^word(0x041f)
                 p.vaddr |= p.taddr & 0x1f
                 p.vaddr |= p.taddr & 0x400
