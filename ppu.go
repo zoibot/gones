@@ -564,7 +564,10 @@ func (p *PPU) run() {
                 p.cycleCount++
                 p.cyc++
             case 341:
-                p.prefetchBytes(320, 21) //TODO inaccurate
+                if bgEnabled {
+                    p.prefetchBytes(320, 21) //TODO inaccurate
+                    p.curTile = <-p.bgPrefetch
+                }
                 p.numBytesRead++
                 p.cyc = 0
                 p.sl += 1
