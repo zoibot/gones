@@ -37,6 +37,8 @@ type PPU struct {
     //prefetch
     bgPrefetch  chan Tile
     bufTile     Tile
+    nextSprs         [8]Sprite
+    numNextSprs      int
     curSprs          [8]Sprite
     numSprs          int
     //position
@@ -132,20 +134,6 @@ func (p *PPU) setNTMirroring(t int) {
         p.setMirroring(0x2400, 0x2400, 0x400)
         p.setMirroring(0x2800, 0x2400, 0x400)
         p.setMirroring(0x2c00, 0x2400, 0x400)
-        /*
-           	case SINGLE_THIRD:
-           		p.setMirroring(0x2000, 0x2800, 0x400);
-           		p.setMirroring(0x2400, 0x2800, 0x400);
-           		p.setMirroring(0x2800, 0x2800, 0x400);
-                   p.setMirroring(0x2c00, 0x2800, 0x400);
-           		break;
-           	case SINGLE_FOURTH:
-           		p.setMirroring(0x2000, 0x2c00, 0x400);
-           		p.setMirroring(0x2400, 0x2c00, 0x400);
-           		p.setMirroring(0x2800, 0x2c00, 0x400);
-                   p.setMirroring(0x2c00, 0x2c00, 0x400);
-           		break;
-        */
     default:
         break
     }
@@ -290,18 +278,22 @@ func (p *PPU) newScanline() {
     }
     p.curTile = <-p.bgPrefetch
     //sprites
-    p.numSprs = 0
-    curY := p.sl - 1
+    p.numSprs = p.numNextSprs
+    for i := 0; i < p.numSprs; i++ {
+        p.curSprs[i] = p.nextSprs[i]
+    }
+    p.numNextSprs = 0
+    curY := p.sl
     s := Sprite{}
     for i := 0; i < 64; i++ {
         (&s).setSpr(i, p.objMem[i*4:i*4+4])
         if int(s.y) <= curY && (curY < int(s.y)+8 || (p.pctrl&(1<<5) != 0 && curY < int(s.y)+16)) {
-            if p.numSprs == 8 {
+            if p.numNextSprs == 8 {
                 p.pstat |= 1 << 5
                 break
             }
-            p.curSprs[p.numSprs] = s
-            p.numSprs++
+            p.nextSprs[p.numNextSprs] = s
+            p.numNextSprs++
         }
     }
 }
@@ -343,10 +335,10 @@ func (p *PPU) prefetchBytes(start int, cycles int) {
     if p.pctrl&(1<<4) != 0 {
         basePtAddr = 0x1000
     }
-    /*baseSprAddr := word(0x0)
+    baseSprAddr := word(0x0)
     if p.pctrl&(1<<3) != 0 {
         baseSprAddr = 0x1000
-    }*/
+    }
     for j := start; j < (start+cycles); j++ {
         if j & 1 == 0 { continue }
         i := j/2
@@ -384,16 +376,37 @@ func (p *PPU) prefetchBytes(start int, cycles int) {
             }
         case 128 < i && i < 160:
             //sprite pattern fetches for next sl
+            cur := p.nextSprs[(i-128)/4]
+            tile := byte(0)
+            ysoff := byte(p.sl) - cur.y
+            if p.pctrl&(1<<5) != 0 { //8x16
+                if cur.attrs&(1<<7) != 0 {
+                    ysoff = 15 - ysoff
+                }
+                tile = cur.tile
+                baseSprAddr = word(tile&1) << 12
+                tile &= ^byte(1)
+                if ysoff > 7 {
+                    ysoff -= 8
+                    tile |= 1
+                }
+            } else {
+                tile = cur.tile
+                if cur.attrs&(1<<7) != 0 {
+                    ysoff = 7 - ysoff
+                }
+            }
+            pat := (word(tile) << 4) + baseSprAddr
             switch i%4 {
-            case 0, 1:
-                break //dummy nt read
+            case 0:
+                break
             case 2:
-                p.curSprs[(i-128)/4].patternLo = 0//p.getMem()//whatever
+                p.nextSprs[(i-128)/4].patternLo = p.getMem(pat + word(ysoff))
             case 3:
-                p.curSprs[(i-128)/4].patternHi = 0//p.getMem()//whatever
+                p.nextSprs[(i-128)/4].patternHi = p.getMem(pat + 8 + word(ysoff))
             }
         case 160 < i && i < 168:
-            //for next scanline TODO repeated
+            //for next scanline TODO repeated and doesn't work
             fineY := (p.vaddr >> 12) & 7
             ntaddr := 0x2000 + (p.vaddr & 0xfff)
             p.bufTile.ntAddr = ntaddr
@@ -459,34 +472,14 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
             cur := Sprite{}
             for i := 0; i < p.numSprs; i++ {
                 if int(p.curSprs[i].x) <= xoff && xoff < int(p.curSprs[i].x)+8 {
-                    tile := byte(0)
                     cur = p.curSprs[i]
                     pal := (1 << 4) | ((cur.attrs & 3) << 2)
                     xsoff := byte(xoff) - cur.x
                     if cur.attrs&(1<<6) != 0 {
                         xsoff = 7 - xsoff
                     }
-                    ysoff := y - cur.y - 1
-                    if p.pctrl&(1<<5) != 0 { //8x16
-                        if cur.attrs&(1<<7) != 0 {
-                            ysoff = 15 - ysoff
-                        }
-                        tile = cur.tile
-                        //baseSprAddr = word(tile&1) << 12
-                        tile &= ^byte(1)
-                        if ysoff > 7 {
-                            ysoff -= 8
-                            tile |= 1
-                        }
-                    } else {
-                        tile = cur.tile
-                        if cur.attrs&(1<<7) != 0 {
-                            ysoff = 7 - ysoff
-                        }
-                    }
-                    //pat := (word(tile) << 4) + baseSprAddr
-                    shi := cur.patternHi//p.getMem(pat + 8 + word(ysoff))
-                    slo := cur.patternLo//p.getMem(pat + word(ysoff))
+                    shi := cur.patternHi
+                    slo := cur.patternLo
                     shi >>= (7 - xsoff)
                     shi &= 1
                     shi <<= 1
@@ -514,7 +507,6 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
         xoff++
         num--
         if p.fineX == 0 {
-            //fmt.Printf("getting new tile %v %v \n", xoff, p.sl)
             if len(p.bgPrefetch) < 1 {
                 fmt.Printf("WTF! no tile there")
             } else {
