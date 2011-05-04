@@ -34,12 +34,15 @@ type PPU struct {
     pmask       byte
     pstat       byte
     pctrl       byte
+    //prefetch
+    bgPrefetch  chan Tile
+    bufTile     Tile
+    curSprs          [8]Sprite
+    numSprs          int
     //position
     xoff, fineX      byte
     horizScroll      bool
     vertScroll       bool
-    curSprs          [8]Sprite
-    numSprs          int
     currentMirroring int
     vaddr, taddr     word
     nextVaddr        word
@@ -47,13 +50,26 @@ type PPU struct {
     cyc              int
     objMem           [0x100]byte
     objAddr          word
+    curTile          Tile
     //debugging
     frameCounter     uint64
+    numBytes         uint
+    numBytesRead     uint
 }
 
 type Sprite struct {
     index             int
     y, tile, attrs, x byte
+    patternLo         byte
+    patternHi         byte
+}
+
+type Tile struct {
+    ntAddr word
+    ntVal byte
+    attr byte
+    patternLo byte
+    patternHi byte
 }
 
 func (s *Sprite) setSpr(index int, m []byte) {
@@ -74,7 +90,9 @@ func makePPU(m *Machine, frames chan []int) *PPU {
     p.setMirroring(0x3000, 0x2000, 0xf00)
     p.currentMirroring = -1
     p.setNTMirroring(m.rom.mirror)
+    p.sl = -2
     p.cycles = make(chan int)
+    p.bgPrefetch = make(chan Tile, 128) // not sure about this value
     return &p
 }
 
@@ -265,6 +283,12 @@ func (p *PPU) setMem(addr word, val byte) {
 func (p *PPU) newScanline() {
     p.vertScroll = false
     p.horizScroll = false
+    p.fineX = p.xoff
+    p.numBytesRead = 0
+    for len(p.bgPrefetch) > 2 {
+        <-p.bgPrefetch
+    }
+    p.curTile = <-p.bgPrefetch
     //sprites
     p.numSprs = 0
     curY := p.sl - 1
@@ -283,21 +307,20 @@ func (p *PPU) newScanline() {
 }
 
 func (p *PPU) updateVertScroll() {
-    p.nextVaddr = p.vaddr
-    fineY := (p.nextVaddr & 0x7000) >> 12
+    fineY := (p.vaddr & 0x7000) >> 12
     if fineY == 7 {
-        if p.nextVaddr&0x3ff >= 0x3e0 {
-            p.nextVaddr &= ^word(0x3ff)
+        if p.vaddr&0x3ff >= 0x3e0 {
+            p.vaddr &= ^word(0x3ff)
         } else {
-            p.nextVaddr += 0x20
-            if p.nextVaddr&0x3ff >= 0x3c0 {
-                p.nextVaddr &= ^word(0x3ff)
-                p.nextVaddr ^= 0x800
+            p.vaddr += 0x20
+            if p.vaddr&0x3ff >= 0x3c0 {
+                p.vaddr &= ^word(0x3ff)
+                p.vaddr ^= 0x800
             }
         }
     }
-    p.nextVaddr &= ^word(0x7000)
-    p.nextVaddr |= (fineY + 1) & 7 << 12
+    p.vaddr &= ^word(0x7000)
+    p.vaddr |= (fineY + 1) & 7 << 12
 }
 
 func (p *PPU) doVblank(renderingEnabled bool) {
@@ -315,32 +338,113 @@ func (p *PPU) doVblank(renderingEnabled bool) {
     }
 }
 
-func (p *PPU) renderPixels(x byte, y byte, num byte) {
-    bgEnabled := p.pmask&(1<<3) != 0
-    spriteEnabled := p.pmask&(1<<4) != 0
-    fineY := (p.vaddr >> 12) & 7
-    xoff := p.cyc
+func (p *PPU) prefetchBytes(start int, cycles int) {
     basePtAddr := word(0x0)
     if p.pctrl&(1<<4) != 0 {
         basePtAddr = 0x1000
     }
-    baseSprAddr := word(0x0)
+    /*baseSprAddr := word(0x0)
     if p.pctrl&(1<<3) != 0 {
         baseSprAddr = 0x1000
+    }*/
+    for j := start; j < (start+cycles); j++ {
+        if j & 1 == 0 { continue }
+        i := j/2
+        switch true {
+        case i < 124:
+            //load bg tile data
+            fineY := (p.vaddr >> 12) & 7
+            ntaddr := 0x2000 + (p.vaddr & 0xfff)
+            p.bufTile.ntAddr = ntaddr
+            switch i%4 {
+            case 0:
+                //fetch nt byte
+                p.bufTile.ntVal = p.getMem(ntaddr)
+            case 1:
+                atBase := (ntaddr & ^word(0x3ff)) + 0x3c0
+                p.bufTile.attr = p.getMem(atBase + ((ntaddr & 0x1f) >>2) + ((ntaddr & 0x3e0)>>7)*8)
+            case 2:
+                ptAddr := (word(p.bufTile.ntVal) << 4) + basePtAddr;
+                p.bufTile.patternLo = p.getMem(ptAddr + fineY)
+            case 3:
+                ptAddr := (word(p.bufTile.ntVal) << 4) + basePtAddr;
+                p.bufTile.patternHi = p.getMem(ptAddr + 8 + fineY)
+                p.bgPrefetch <- p.bufTile
+                p.numBytes++
+                if (p.vaddr & 0x1f) == 0x1f {
+                    p.vaddr ^= 0x400
+                    p.vaddr -= 0x1f
+                } else {
+                    p.vaddr++
+                }
+            }
+        case 124 < i && i < 128:
+            if p.numBytes != 0 {
+                p.numBytes = 0
+            }
+        case 128 < i && i < 160:
+            //sprite pattern fetches for next sl
+            switch i%4 {
+            case 0, 1:
+                break //dummy nt read
+            case 2:
+                p.curSprs[(i-128)/4].patternLo = 0//p.getMem()//whatever
+            case 3:
+                p.curSprs[(i-128)/4].patternHi = 0//p.getMem()//whatever
+            }
+        case 160 < i && i < 168:
+            //for next scanline TODO repeated
+            fineY := (p.vaddr >> 12) & 7
+            ntaddr := 0x2000 + (p.vaddr & 0xfff)
+            p.bufTile.ntAddr = ntaddr
+            switch i%4 {
+            case 0:
+                //fetch nt byte
+                p.bufTile.ntVal = p.getMem(ntaddr)
+
+            case 1:
+                atBase := (ntaddr & ^word(0x3ff)) + 0x3c0
+                p.bufTile.attr = p.getMem(atBase + ((ntaddr & 0x1f) >>2) + ((ntaddr & 0x3e0)>>7)*8)
+            case 2:
+                ptAddr := (word(p.bufTile.ntVal) << 4) + basePtAddr;
+                p.bufTile.patternLo = p.getMem(ptAddr + fineY)
+            case 3:
+                ptAddr := (word(p.bufTile.ntVal) << 4) + basePtAddr;
+                p.bufTile.patternHi = p.getMem(ptAddr + 8 + fineY)
+                p.bgPrefetch <- p.bufTile
+                p.numBytes++
+                if (p.vaddr & 0x1f) == 0x1f {
+                    p.vaddr ^= 0x400
+                    p.vaddr -= 0x1f
+                } else {
+                    p.vaddr++
+                }
+            }
+        }
+        if i == 126 {
+            p.updateVertScroll()
+        } else if i == 128 {
+            p.vaddr &= ^word(0x041f)
+            p.vaddr |= p.taddr & 0x1f
+            p.vaddr |= p.taddr & 0x400
+            //p.fineX = p.xoff TODO
+        }
     }
+}
+
+func (p *PPU) renderPixels(x byte, y byte, num byte) {
+    bgEnabled := p.pmask&(1<<3) != 0
+    spriteEnabled := p.pmask&(1<<4) != 0
+    xoff := p.cyc
     for num != 0 {
-        ntAddr := 0x2000 | (p.vaddr & 0xfff)
-        atBase := (ntAddr & ^word(0x3ff)) + 0x3c0
-        ntVal := word(p.getMem(ntAddr))
-        ptAddr := (ntVal << 4) + basePtAddr
-        row := (ntAddr >> 6) & 1
-        col := (ntAddr & 2) >> 1
-        atVal := p.getMem(atBase + ((ntAddr & 0x1f) >> 2) + ((ntAddr&0x3e0)>>7)*8)
+        row := (p.curTile.ntAddr >> 6) & 1
+        col := (p.curTile.ntAddr & 2) >> 1
+        atVal := p.curTile.attr
         atVal >>= 4*row + 2*col
         atVal &= 3
         atVal <<= 2
-        hi := p.getMem(ptAddr + 8 + fineY)
-        lo := p.getMem(ptAddr + fineY)
+        hi := p.curTile.patternHi
+        lo := p.curTile.patternLo
         hi >>= (7 - p.fineX)
         hi &= 1
         hi <<= 1
@@ -368,7 +472,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                             ysoff = 15 - ysoff
                         }
                         tile = cur.tile
-                        baseSprAddr = word(tile&1) << 12
+                        //baseSprAddr = word(tile&1) << 12
                         tile &= ^byte(1)
                         if ysoff > 7 {
                             ysoff -= 8
@@ -380,9 +484,9 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                             ysoff = 7 - ysoff
                         }
                     }
-                    pat := (word(tile) << 4) + baseSprAddr
-                    shi := p.getMem(pat + 8 + word(ysoff))
-                    slo := p.getMem(pat + word(ysoff))
+                    //pat := (word(tile) << 4) + baseSprAddr
+                    shi := cur.patternHi//p.getMem(pat + 8 + word(ysoff))
+                    slo := cur.patternLo//p.getMem(pat + word(ysoff))
                     shi >>= (7 - xsoff)
                     shi &= 1
                     shi <<= 1
@@ -408,15 +512,16 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
         p.fineX++
         p.fineX &= 7
         xoff++
-        if p.fineX == 0 {
-            if (p.vaddr & 0x1f) == 0x1f {
-                p.vaddr ^= 0x400
-                p.vaddr -= 0x1f
-            } else {
-                p.vaddr++
-            }
-        }
         num--
+        if p.fineX == 0 {
+            //fmt.Printf("getting new tile %v %v \n", xoff, p.sl)
+            if len(p.bgPrefetch) < 1 {
+                fmt.Printf("WTF! no tile there")
+            } else {
+                p.curTile = <-p.bgPrefetch
+            }
+            p.numBytesRead++
+        }
     }
 }
 
@@ -459,6 +564,8 @@ func (p *PPU) run() {
                 p.cycleCount++
                 p.cyc++
             case 341:
+                p.prefetchBytes(320, 21) //TODO inaccurate
+                p.numBytesRead++
                 p.cyc = 0
                 p.sl += 1
             }
@@ -470,21 +577,11 @@ func (p *PPU) run() {
                 todo = 341 - p.cyc
             }
             y := byte(p.sl)
-            if renderingEnabled && p.cyc < 256 {
-                if p.cyc < 251 && p.cyc + todo >= 251 {
-                    p.updateVertScroll()
+            if renderingEnabled {
+                p.prefetchBytes(p.cyc, todo)
+                if p.cyc < 256 {
+                    p.renderPixels(byte(p.cyc), y, byte(min(todo, 256-p.cyc)))
                 }
-                p.renderPixels(byte(p.cyc), y, byte(min(todo, 256-p.cyc)))
-            }
-            if p.cyc >= 257 && !p.horizScroll {
-                if !p.vertScroll {
-                    p.vaddr = p.nextVaddr
-                }
-                p.vaddr &= ^word(0x041f)
-                p.vaddr |= p.taddr & 0x1f
-                p.vaddr |= p.taddr & 0x400
-                p.fineX = p.xoff
-                p.horizScroll = true
             }
             p.cyc += todo
             p.cycleCount += uint64(todo)
