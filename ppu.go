@@ -370,11 +370,11 @@ func (p *PPU) prefetchBytes(start int, cycles int) {
                     p.vaddr++
                 }
             }
-        case 124 < i && i < 128:
+        case 124 <= i && i < 128:
             if p.numBytes != 0 {
                 p.numBytes = 0
             }
-        case 128 < i && i < 160:
+        case 128 <= i && i < 160:
             //sprite pattern fetches for next sl
             cur := p.nextSprs[(i-128)/4]
             tile := byte(0)
@@ -405,7 +405,7 @@ func (p *PPU) prefetchBytes(start int, cycles int) {
             case 3:
                 p.nextSprs[(i-128)/4].patternHi = p.getMem(pat + 8 + word(ysoff))
             }
-        case 160 < i && i < 168:
+        case 160 <= i && i < 168:
             //for next scanline TODO repeated and doesn't work
             fineY := (p.vaddr >> 12) & 7
             ntaddr := 0x2000 + (p.vaddr & 0xfff)
@@ -414,7 +414,6 @@ func (p *PPU) prefetchBytes(start int, cycles int) {
             case 0:
                 //fetch nt byte
                 p.bufTile.ntVal = p.getMem(ntaddr)
-
             case 1:
                 atBase := (ntaddr & ^word(0x3ff)) + 0x3c0
                 p.bufTile.attr = p.getMem(atBase + ((ntaddr & 0x1f) >>2) + ((ntaddr & 0x3e0)>>7)*8)
@@ -488,7 +487,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                     if cur.index == 0 && (hi|lo) != 0 && (shi|slo) != 0 && bgEnabled && !(xoff < 8 && (p.pmask & 2 == 0)) && xoff < 255 {
                         p.pstat |= 1 << 6
                     }
-                    if (hi|lo == 0 && shi|slo != 0) || (cur.attrs&(1<<5) == 0) {
+                    if (hi|lo == 0) || (cur.attrs&(1<<5) == 0) {
                         if shi|slo != 0 {
                             coli = 0x3f00 | word(pal|shi|slo)
                             break
