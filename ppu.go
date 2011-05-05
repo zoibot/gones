@@ -282,10 +282,11 @@ func (p *PPU) newScanline() {
     for i := 0; i < p.numSprs; i++ {
         p.curSprs[i] = p.nextSprs[i]
     }
+
     p.numNextSprs = 0
     curY := p.sl
     if curY == 240 {
-        p.nextNumSprs = 0
+        p.numNextSprs = 0
         return
     }
     s := Sprite{}
@@ -293,7 +294,6 @@ func (p *PPU) newScanline() {
         (&s).setSpr(i, p.objMem[i*4:i*4+4])
         if int(s.y) <= curY && (curY < int(s.y)+8 || (p.pctrl&(1<<5) != 0 && curY < int(s.y)+16)) {
             if p.numNextSprs == 8 {
-                p.pstat |= 1 << 5
                 break
             }
             p.nextSprs[p.numNextSprs] = s
@@ -440,6 +440,10 @@ func (p *PPU) prefetchBytes(start int, cycles int) {
         if i == 126 {
             p.updateVertScroll()
         } else if i == 128 {
+            if p.numNextSprs == 8 {
+                fmt.Printf("overflow\n")
+                p.pstat |= 1<<5
+            }
             p.vaddr &= ^word(0x041f)
             p.vaddr |= p.taddr & 0x1f
             p.vaddr |= p.taddr & 0x400
@@ -488,7 +492,6 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                     shi <<= 1
                     slo >>= (7 - xsoff)
                     slo &= 1
-                    }
                     if cur.index == 0 && (hi|lo) != 0 && (shi|slo) != 0 && bgEnabled && !(xoff < 8 && (p.pmask & 2 == 0)) && xoff < 255 {
                         p.pstat |= 1 << 6
                     }
