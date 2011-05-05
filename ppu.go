@@ -507,7 +507,6 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
         num--
         if p.fineX == 0 {
             if len(p.bgPrefetch) < 1 {
-                fmt.Printf("WTF! no tile there")
             } else {
                 p.curTile = <-p.bgPrefetch
             }

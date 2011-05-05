@@ -94,7 +94,7 @@ func (m *MMC1) prgWrite(addr word, val byte) {
             }
             m.control = m.loadr
         } else if addr < 0xc000 {
-            if m.control&(1<<5) != 0 {
+            if m.control&(1<<4) != 0 {
                 //4kb mode
                 m.rom.chr_rom[0] = m.rom.chr_banks[0x1000*int(m.loadr):]
             } else {
@@ -102,7 +102,7 @@ func (m *MMC1) prgWrite(addr word, val byte) {
                 m.rom.chr_rom[1] = m.rom.chr_banks[0x1000*int(m.loadr|1):]
             }
         } else if addr < 0xe000 {
-            if m.control&(1<<5) != 0 {
+            if m.control&(1<<4) != 0 {
                 //4kb mode
                 m.rom.chr_rom[1] = m.rom.chr_banks[0x1000*int(m.loadr):]
             }
