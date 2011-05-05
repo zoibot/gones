@@ -284,6 +284,10 @@ func (p *PPU) newScanline() {
     }
     p.numNextSprs = 0
     curY := p.sl
+    if curY == 240 {
+        p.nextNumSprs = 0
+        return
+    }
     s := Sprite{}
     for i := 0; i < 64; i++ {
         (&s).setSpr(i, p.objMem[i*4:i*4+4])
@@ -484,6 +488,7 @@ func (p *PPU) renderPixels(x byte, y byte, num byte) {
                     shi <<= 1
                     slo >>= (7 - xsoff)
                     slo &= 1
+                    }
                     if cur.index == 0 && (hi|lo) != 0 && (shi|slo) != 0 && bgEnabled && !(xoff < 8 && (p.pmask & 2 == 0)) && xoff < 255 {
                         p.pstat |= 1 << 6
                     }
@@ -554,13 +559,13 @@ func (p *PPU) run() {
                 p.cycleCount++
                 p.cyc++
             case 341:
-                if bgEnabled {
-                    p.prefetchBytes(320, 21) //TODO inaccurate
-                    p.curTile = <-p.bgPrefetch
-                }
-                p.numBytesRead++
                 p.cyc = 0
                 p.sl += 1
+                if bgEnabled {
+                    p.prefetchBytes(320, 21) //TODO inaccurate
+                    p.newScanline()
+                }
+                p.numBytesRead++
             }
         case p.sl < 240:
             todo := 0
