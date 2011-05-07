@@ -65,8 +65,9 @@ func (m *Machine) getMem(addr word) byte {
     case addr < 0x8000:
         return m.rom.prg_ram[addr-0x6000]
     default:
-        //TODO the literal 14 here doesn't work anymore!!!
-        return m.rom.prg_rom[addr&m.rom.prg_bank_size>>14][addr&(m.rom.prg_bank_size-1)]
+        bank := (m.rom.prg_bank_mask & addr) >> m.rom.prg_bank_shift
+        //fmt.Printf("bank %v off %04X\n", bank, addr&((1<<m.rom.prg_bank_shift)-1))
+        return m.rom.prg_rom[bank][addr&((1<<m.rom.prg_bank_shift)-1)]
     }
     return 0 //wtf go?
 }
@@ -162,6 +163,7 @@ func (m *Machine) Run(debug bool) {
         m.ppu.setNTMirroring(m.rom.mirror)
         m.ppu.run()
         m.apu.update(cycles)
+        m.rom.mapper.update(m)
         m.runInterrupts()
 
         //special handling for blargg tests

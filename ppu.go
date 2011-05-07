@@ -26,6 +26,7 @@ type PPU struct {
     lastNMI uint64
     vblOff uint64
     NMIOccurred bool
+    a12high bool
     //memory
     mem         [0x4000]byte
     memBuf      byte
@@ -218,6 +219,7 @@ func (p *PPU) writeRegister(num int, val byte) {
             p.taddr &= ^word(0xff)
             p.taddr |= word(val)
             p.vaddr = p.taddr
+            p.a12high = p.vaddr & 0x1000 != 0
             if p.cyc >= 251 && p.sl < 240 && p.sl >= 0 {
                 p.vertScroll = true
             }
@@ -240,7 +242,9 @@ func (p *PPU) writeRegister(num int, val byte) {
 func (p *PPU) getMem(addr word) byte {
     switch true {
     case addr < 0x2000:
-        return p.mach.rom.chr_rom[(addr&0x1000)>>12][addr&0xfff]
+        p.a12high = addr & 0x1000 != 0
+        chr_bank := (addr&p.mach.rom.chr_bank_mask)>>p.mach.rom.chr_bank_shift
+        return p.mach.rom.chr_rom[chr_bank][addr&(^p.mach.rom.chr_bank_mask)]
     case addr < 0x3000:
         return p.mem[p.mirrorTable[addr]]
     case addr < 0x3f00:
@@ -257,7 +261,9 @@ func (p *PPU) getMem(addr word) byte {
 func (p *PPU) setMem(addr word, val byte) {
     switch true {
     case addr < 0x2000:
-        p.mach.rom.chr_rom[(addr&p.mach.rom.chr_bank_size)>>12][addr&(p.mach.rom.chr_bank_size-1)] = val
+        p.a12high = addr & 0x1000 != 0
+        chr_bank := (addr&p.mach.rom.chr_bank_mask)>>p.mach.rom.chr_bank_shift
+        p.mach.rom.chr_rom[chr_bank][addr&(^p.mach.rom.chr_bank_mask)] = val
     case addr < 0x3f00:
         p.mem[p.mirrorTable[addr]] = val
     default:
@@ -437,13 +443,13 @@ func (p *PPU) prefetchBytes(start int, cycles int) {
                 }
             }
         }
-        if i == 126 {
-            p.updateVertScroll()
-        } else if i == 128 {
+        if i == 68 {
             if p.numNextSprs == 8 {
-                fmt.Printf("overflow\n")
                 p.pstat |= 1<<5
             }
+        } else if i == 126 {
+            p.updateVertScroll()
+        } else if i == 128 {
             p.vaddr &= ^word(0x041f)
             p.vaddr |= p.taddr & 0x1f
             p.vaddr |= p.taddr & 0x400

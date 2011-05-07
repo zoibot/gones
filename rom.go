@@ -11,12 +11,14 @@ type ROM struct {
     chr_ram        bool
     chr_rom        [8][]byte
     chr_banks      []byte
-    chr_bank_size  word
+    chr_bank_mask  word
+    chr_bank_shift uint
     prg_ram        []byte
     prg_size       byte
-    prg_rom        [2][]byte
+    prg_rom        [4][]byte
     prg_banks      []byte
-    prg_bank_size  word
+    prg_bank_mask  word
+    prg_bank_shift uint
     flags6, flags7 byte
     mapper_num     byte
     mapper         Mapper
@@ -66,4 +68,15 @@ func (r *ROM) loadRom(f *os.File) {
         r.prg_ram = make([]byte, uint(prg_ram_size)*0x4000)
     }
     fmt.Printf("Rom loaded successfully!\n")
+}
+
+func (r *ROM) saveGame() {
+    //if there is prg ram and it is battery backed and enabled right nyah {
+    //    os.Create(r."save")
+    //}
+}
+
+func (r *ROM) loadGame() {
+    //open file
+    //read it and put in prg ram
 }
