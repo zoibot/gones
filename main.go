@@ -116,7 +116,6 @@ func run(debug bool) {
                 gones.SaveImage(fmt.Sprintf("video/%s_%05d.png", romname, num), frame)
                 num++
             }
-            sdl.WM_SetCaption("gones fps", "")
             screen.Flip()
         case c := <-input:
             //char from stdin

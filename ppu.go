@@ -171,6 +171,7 @@ func (p *PPU) readRegister(num int) byte {
             p.vaddr += 1
         }
         p.vaddr &= 0x3fff
+        p.a12high = p.vaddr & 0x1000 != 0
         return ret
     }
     return 0
@@ -236,6 +237,7 @@ func (p *PPU) writeRegister(num int, val byte) {
             p.vaddr += 1
         }
         p.vaddr &= 0x3fff
+        p.a12high = p.vaddr & 0x1000 != 0
     }
 }
 
@@ -341,6 +343,11 @@ func (p *PPU) doVblank(renderingEnabled bool) {
 }
 
 func (p *PPU) prefetchBytes(start int, cycles int) {
+    bgEnabled := p.pmask&(1<<3) != 0
+    spriteEnabled := p.pmask&(1<<4) != 0
+    if !bgEnabled && !spriteEnabled {
+        return
+    }
     basePtAddr := word(0x0)
     if p.pctrl&(1<<4) != 0 {
         basePtAddr = 0x1000
@@ -380,10 +387,7 @@ func (p *PPU) prefetchBytes(start int, cycles int) {
                     p.vaddr++
                 }
             }
-        case 124 <= i && i < 128:
-            if p.numBytes != 0 {
-                p.numBytes = 0
-            }
+//        case 124 <= i && i < 128:
         case 128 <= i && i < 160:
             //sprite pattern fetches for next sl
             cur := p.nextSprs[(i-128)/4]
@@ -542,6 +546,7 @@ func (p *PPU) run() {
         cycles := int(p.mach.cpu.cycleCount*3 - p.cycleCount)
         switch true {
         case p.sl == -2:
+            fmt.Println(len(p.bgPrefetch))
             p.doVblank(renderingEnabled)
         case p.sl == -1:
             switch p.cyc {
@@ -550,10 +555,19 @@ func (p *PPU) run() {
                 p.pstat &= ^byte(1 << 6)
                 p.pstat &= ^byte(1 << 5)
                 p.vblOff = p.cycleCount
-                p.cycleCount += 304
-                p.cyc += 304
+                p.cycleCount += 4
+                p.cyc += 4
+            case 4:
+                p.cycleCount += 256
+                p.cyc += 256
+                //p.prefetchBytes(0, 4)
+            case 260:
+                p.cycleCount += 44
+                p.cyc += 44
+                //p.prefetchBytes(4, 256)
             case 304:
                 if bgEnabled {
+                    //p.prefetchBytes(260, 44) //TODO inaccurate
                     p.vaddr = p.taddr
                 }
                 p.cycleCount += 36
@@ -563,15 +577,20 @@ func (p *PPU) run() {
                     if p.oddFrame {
                         p.cycleCount -= 1
                     }
+                    //p.prefetchBytes(304, 37) //TODO inaccurate
                 }
                 p.oddFrame = !p.oddFrame
                 p.cycleCount++
                 p.cyc++
             case 341:
+                if bgEnabled {
+                    p.prefetchBytes(0, 341) //TODO inaccurate
+                    //p.bgPrefetch <- Tile{}
+                    //p.bgPrefetch <- Tile{}
+                }
                 p.cyc = 0
                 p.sl += 1
                 if bgEnabled {
-                    p.prefetchBytes(320, 21) //TODO inaccurate
                     p.newScanline()
                 }
                 p.numBytesRead++

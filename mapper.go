@@ -105,8 +105,11 @@ func (m *MMC1) prgWrite(addr word, val byte) {
                 //4kb mode
                 m.rom.chr_rom[0] = m.rom.chr_banks[0x1000*int(m.loadr):]
             } else {
-                m.rom.chr_rom[0] = m.rom.chr_banks[0x1000*int(m.loadr&0x1e):]
-                m.rom.chr_rom[1] = m.rom.chr_banks[0x1000*int(m.loadr|1):]
+                if m.rom.chr_size != 0 {
+                    loadr := m.loadr & (m.rom.chr_size - 1)
+                    m.rom.chr_rom[0] = m.rom.chr_banks[0x1000*int(loadr&0x1e):]
+                    m.rom.chr_rom[1] = m.rom.chr_banks[0x1000*int(loadr|1):]
+                }
             }
         } else if addr < 0xe000 {
             if m.control&(1<<4) != 0 {
@@ -114,7 +117,7 @@ func (m *MMC1) prgWrite(addr word, val byte) {
                 m.rom.chr_rom[1] = m.rom.chr_banks[0x1000*int(m.loadr):]
             }
         } else {
-            m.prg_bank = m.loadr
+            m.prg_bank = m.loadr & (m.rom.prg_size - 1)
             m.updatePrgBanks()
         }
         m.shift = 0
@@ -267,9 +270,9 @@ func (c *MMC3) prgWrite(addr word, val byte) {
                     case 5:
                         c.currentChrBanks[5] = v
                     case 6:
-                        c.currentPrgBanks[0] = v
+                        c.currentPrgBanks[0] = v & (int(c.rom.prg_size)*2-1)
                     case 7:
-                        c.currentPrgBanks[1] = v
+                        c.currentPrgBanks[1] = v & (int(c.rom.prg_size)*2-1)
                 }
                 c.updatePrgBanks()
                 c.updateChrBanks()
@@ -323,6 +326,7 @@ func (c *MMC3) updatePrgBanks() {
 
 func (c *MMC3) update(m *Machine) {
     if !c.a12high && m.ppu.a12high {
+        //fmt.Printf("clockeroo sl: %v cyc %v \n", m.ppu.sl, m.ppu.cyc)
         c.clockCounter()
     }
     c.a12high = m.ppu.a12high
@@ -332,7 +336,7 @@ func (c *MMC3) update(m *Machine) {
 }
 
 func (c *MMC3) clockCounter() {
-    fmt.Printf("clocking counter %v\n", c.irqCounter)
+    //fmt.Printf("clocking counter %v \n", c.irqCounter)
     if c.irqCounter > 0 {
         c.irqCounter--
     } else {
@@ -341,7 +345,7 @@ func (c *MMC3) clockCounter() {
     if c.irqCounter == 0 && c.irqEnabled {
         c.irqWaiting = true
     }
-    fmt.Printf("clocking counter now %v\n", c.irqCounter)
+    //fmt.Printf("clocking counter now %v\n", c.irqCounter)
 }
 
 func (c *MMC3) name() string {
