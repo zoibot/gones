@@ -584,7 +584,7 @@ func (p *PPU) run() {
                 p.cyc++
             case 341:
                 if bgEnabled {
-                    p.prefetchBytes(0, 341) //TODO inaccurate
+                    p.prefetchBytes(320, 21) //TODO inaccurate
                     //p.bgPrefetch <- Tile{}
                     //p.bgPrefetch <- Tile{}
                 }
