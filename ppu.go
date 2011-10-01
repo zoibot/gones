@@ -546,7 +546,7 @@ func (p *PPU) run() {
         cycles := int(p.mach.cpu.cycleCount*3 - p.cycleCount)
         switch true {
         case p.sl == -2:
-            fmt.Println(len(p.bgPrefetch))
+            //fmt.Println(len(p.bgPrefetch))
             p.doVblank(renderingEnabled)
         case p.sl == -1:
             switch p.cyc {

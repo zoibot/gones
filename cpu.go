@@ -1,6 +1,7 @@
 package gones
 
 import "fmt"
+import "os"
 
 const (
     N   byte = 1 << 7
@@ -487,6 +488,7 @@ func (c *CPU) runInstruction(inst *Instruction) int {
     case LAR:
     default:
         fmt.Printf("Unsupported opcode! %d", int(inst.op.op))
+        os.Exit(1);
     }
     //c.cycleCount += uint64(inst.op.cycles + inst.extra_cycles)
     instCycles := int(c.cycleCount - c.prevCycles)

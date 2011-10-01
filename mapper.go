@@ -118,6 +118,7 @@ func (m *MMC1) prgWrite(addr word, val byte) {
             }
         } else {
             m.prg_bank = m.loadr & (m.rom.prg_size - 1)
+            fmt.Printf("Setting prg bank %v\n", m.prg_bank);
             m.updatePrgBanks()
         }
         m.shift = 0
@@ -313,6 +314,8 @@ func (c *MMC3) updateChrBanks() {
 }
 
 func (c *MMC3) updatePrgBanks() {
+    fmt.Printf("switching to prg banks %d %d %d \n", c.currentPrgBanks[0], c.currentPrgBanks[1], c.currentPrgBanks[2]);
+    fmt.Printf("bank config %d\n", c.bankConfiguration & 1);
     if c.bankConfiguration & 1 == 0 {
         c.rom.prg_rom[0] = c.rom.prg_banks[0x2000 * c.currentPrgBanks[0]:]
         c.rom.prg_rom[1] = c.rom.prg_banks[0x2000 * c.currentPrgBanks[1]:]
